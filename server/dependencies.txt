@@ -1,0 +1,12 @@
+# 核心依赖
+@nestjs/typeorm typeorm pg
+@nestjs/bull bull
+@nestjs/config
+@nestjs/swagger swagger-ui-express
+@nestjs/schedule
+class-validator class-transformer
+ioredis
+
+# 开发依赖
+@types/node
+@types/bull
