@@ -11,7 +11,7 @@ export default registerAs(
     password: process.env.DB_PASSWORD || 'postgres',
     database: process.env.DB_DATABASE || 'diagnosis',
     entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-    synchronize: process.env.NODE_ENV === 'development',
+    synchronize: true,
     logging: process.env.NODE_ENV === 'development',
   }),
 );
