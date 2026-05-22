@@ -36,7 +36,7 @@ export class WebhookService {
     requestId: string,
   ): Promise<boolean> {
     // 1. 验证时间戳（5分钟内有效）
-    const requestTime = pa(timestamp, 10);
+    const requestTime = parseInt(timestamp, 10);
     const now = Date.now();
     const timeDiff = Math.abs(now - requestTime);
 
