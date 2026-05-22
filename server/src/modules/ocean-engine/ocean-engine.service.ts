@@ -5,6 +5,7 @@ import Redis from 'ioredis';
 import axios, { AxiosInstance } from 'axios';
 import * as crypto from 'crypto';
 import * as FormData from 'form-data';
+import { OceanEngineTokenService } from './ocean-engine-token.service';
 
 /** 巨量引擎前测任务单条结果 */
 export interface DiagnosisTaskResultItem {
@@ -28,6 +29,7 @@ export class OceanEngineService {
   constructor(
     private readonly configService: ConfigService,
     @InjectRedis() private readonly redis: Redis,
+    private readonly tokenService: OceanEngineTokenService,
   ) {
     this.axiosInstance = axios.create({
       baseURL: this.baseUrl,
@@ -51,26 +53,11 @@ export class OceanEngineService {
   }
 
   /**
-   * 获取 Access Token
-   * 暂时直接从环境变量 OCEAN_ENGINE_ACCESS_TOKEN 读取，后续再完善 OAuth 刷新逻辑
+   * 获取有效的 Access Token
+   * 委托给 OceanEngineTokenService，自动处理过期刷新
    */
   async getAccessToken(): Promise<string> {
-    // 先尝试从 Redis 缓存读取（为后续 OAuth 刷新预留）
-    const cacheKey = 'ocean_engine:access_token:global';
-    const cached = await this.redis.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    // 从环境变量读取
-    const token = this.configService.get<string>('OCEAN_ENGINE_ACCESS_TOKEN');
-    if (!token) {
-      throw new Error('环境变量 OCEAN_ENGINE_ACCESS_TOKEN 未配置');
-    }
-
-    // 写入 Redis，TTL 设为 1 小时（环境变量 token 不会过期，仅作缓存加速）
-    await this.redis.setex(cacheKey, 3600, token);
-    return token;
+    return this.tokenService.getValidAccessToken();
   }
 
   /**
@@ -129,6 +116,7 @@ export class OceanEngineService {
   /**
    * 查询前测任务结果（By 任务 ID）
    * GET https://api.oceanengine.com/open_api/2/diagnosis_task/agent/get/
+   * task_ids 用重复 key 格式：task_ids=1&task_ids=2
    */
   async getDiagnosisTaskResult(
     agentId: number,
@@ -140,15 +128,12 @@ export class OceanEngineService {
       `→ GET /open_api/2/diagnosis_task/agent/get/ agentId=${agentId} taskIds=${taskIds.join(',')}`,
     );
 
+    // 手动构造 query string，task_ids 用重复 key 格式
+    const qs = [`agent_id=${agentId}`, ...taskIds.map((id) => `task_ids=${id}`)].join('&');
+
     const response = await this.axiosInstance.get(
-      '/open_api/2/diagnosis_task/agent/get/',
-      {
-        headers: { 'Access-Token': token },
-        params: {
-          agent_id: agentId,
-          task_ids: taskIds.join(','),
-        },
-      },
+      `/open_api/2/diagnosis_task/agent/get/?${qs}`,
+      { headers: { 'Access-Token': token } },
     );
 
     const { code, message, data } = response.data;
@@ -162,9 +147,10 @@ export class OceanEngineService {
         videoId: item.video_id,
         materialId: item.material_id,
         status: item.status as 'PENDING' | 'SUCCESS' | 'FAILED',
-        isAdHighQuality: item.is_ad_high_quality ?? 'UNKNOWN',
-        isEcpHighQuality: item.is_ecp_high_quality ?? 'UNKNOWN',
-        isFirstPublish: item.is_first_publish ?? 'UNKNOWN',
+        // 文档字段名带 _material 后缀
+        isAdHighQuality: item.is_ad_high_quality_material ?? 'UNKNOWN',
+        isEcpHighQuality: item.is_ecp_high_quality_material ?? 'UNKNOWN',
+        isFirstPublish: item.is_first_publish_material ?? 'UNKNOWN',
         notAdHighQualityReason: item.not_ad_high_quality_reason ?? [],
         notEcpHighQualityReason: item.not_ecp_high_quality_reason ?? [],
       }),
@@ -276,15 +262,16 @@ export class OceanEngineService {
 
     const queryParams: Record<string, any> = { agent_id: agentId };
     if (filtering) {
-      if (filtering.width !== undefined) queryParams['filtering.width'] = filtering.width;
-      if (filtering.height !== undefined) queryParams['filtering.height'] = filtering.height;
-      if (filtering.ratio?.length) queryParams['filtering.ratio'] = filtering.ratio.join(',');
-      if (filtering.videoIds?.length) queryParams['filtering.video_ids'] = filtering.videoIds.join(',');
-      if (filtering.materialIds?.length) queryParams['filtering.material_ids'] = filtering.materialIds.join(',');
-      if (filtering.signatures?.length) queryParams['filtering.signatures'] = filtering.signatures.join(',');
-      if (filtering.startTime) queryParams['filtering.start_time'] = filtering.startTime;
-      if (filtering.endTime) queryParams['filtering.end_time'] = filtering.endTime;
-      if (filtering.source?.length) queryParams['filtering.source'] = filtering.source.join(',');
+      // 巨量引擎 filtering 参数用 filtering[key] 格式（bracket notation）
+      if (filtering.width !== undefined) queryParams['filtering[width]'] = filtering.width;
+      if (filtering.height !== undefined) queryParams['filtering[height]'] = filtering.height;
+      if (filtering.ratio?.length) queryParams['filtering[ratio]'] = filtering.ratio;
+      if (filtering.videoIds?.length) queryParams['filtering[video_ids]'] = filtering.videoIds;
+      if (filtering.materialIds?.length) queryParams['filtering[material_ids]'] = filtering.materialIds;
+      if (filtering.signatures?.length) queryParams['filtering[signatures]'] = filtering.signatures;
+      if (filtering.startTime) queryParams['filtering[start_time]'] = filtering.startTime;
+      if (filtering.endTime) queryParams['filtering[end_time]'] = filtering.endTime;
+      if (filtering.source?.length) queryParams['filtering[source]'] = filtering.source;
     }
     if (page !== undefined) queryParams.page = page;
     if (pageSize !== undefined) queryParams.page_size = pageSize;

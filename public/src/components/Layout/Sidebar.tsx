@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Menu } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -9,87 +9,94 @@ import {
   SettingOutlined,
 } from '@ant-design/icons';
 
+const menuItems = [
+  {
+    key: '/dashboard',
+    icon: <HomeOutlined />,
+    label: '首页',
+  },
+  {
+    key: '/new-material',
+    icon: <ExperimentOutlined />,
+    label: '新素材检测',
+    children: [
+      { key: '/new-material', label: '发起前测' },
+      { key: '/new-material/tasks', label: '任务列表' },
+    ],
+  },
+  {
+    key: '/ark-material',
+    icon: <InboxOutlined />,
+    label: '已有素材检测',
+    children: [
+      { key: '/ark-material/tasks', label: '任务列表' },
+    ],
+  },
+  {
+    key: '/statistics',
+    icon: <BarChartOutlined />,
+    label: '数据统计',
+  },
+  {
+    key: '/base',
+    icon: <SettingOutlined />,
+    label: '基础数据',
+    children: [
+      { key: '/base/advertisers', label: '广告主账号' },
+      { key: '/base/configs', label: '诊断配置模板' },
+      { key: '/base/system', label: '系统配置' },
+    ],
+  },
+];
+
+const getParentKey = (path: string): string[] => {
+  if (path.startsWith('/new-material')) return ['/new-material'];
+  if (path.startsWith('/ark-material')) return ['/ark-material'];
+  if (path.startsWith('/base')) return ['/base'];
+  return [];
+};
+
+const getSelectedKey = (path: string): string[] => {
+  if (path === '/new-material') return ['/new-material'];
+  for (const item of menuItems) {
+    if ('children' in item && item.children) {
+      const child = item.children.find(
+        (c) => path.startsWith(c.key) && c.key !== item.key,
+      );
+      if (child) return [child.key];
+      const indexChild = item.children.find(
+        (c) => c.key === item.key && path === item.key,
+      );
+      if (indexChild) return [indexChild.key];
+    }
+    if (path === item.key) return [item.key];
+  }
+  return [path];
+};
+
 const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const menuItems = [
-    {
-      key: '/dashboard',
-      icon: <HomeOutlined />,
-      label: '首页',
-    },
-    {
-      key: '/new-material',
-      icon: <ExperimentOutlined />,
-      label: '新素材检测',
-      children: [
-        { key: '/new-material', label: '发起前测' },
-        { key: '/new-material/tasks', label: '任务列表' },
-      ],
-    },
-    {
-      key: '/ark-material',
-      icon: <InboxOutlined />,
-      label: '已有素材检测',
-      children: [
-        { key: '/ark-material/tasks', label: '任务列表' },
-      ],
-    },
-    {
-      key: '/statistics',
-      icon: <BarChartOutlined />,
-      label: '数据统计',
-    },
-    {
-      key: '/base',
-      icon: <SettingOutlined />,
-      label: '基础数据',
-      children: [
-        { key: '/base/advertisers', label: '广告主账号' },
-        { key: '/base/configs', label: '诊断配置模板' },
-        { key: '/base/system', label: '系统配置' },
-      ],
-    },
-  ];
+  const [openKeys, setOpenKeys] = useState<string[]>(() =>
+    getParentKey(location.pathname),
+  );
 
-  const handleMenuClick = ({ key }: { key: string }) => {
-    navigate(key);
-  };
-
-  const getSelectedKeys = () => {
-    const path = location.pathname;
-    // 精确匹配：/new-material 首页（发起前测）
-    if (path === '/new-material') return ['/new-material'];
-    // 子路径匹配
-    for (const item of menuItems) {
-      if (item.children) {
-        const child = item.children.find((c) => path.startsWith(c.key) && c.key !== item.key);
-        if (child) return [child.key];
-        // 匹配父级 index（如 /new-material 本身）
-        const indexChild = item.children.find((c) => c.key === item.key && path === item.key);
-        if (indexChild) return [indexChild.key];
-      }
-      if (path === item.key) return [item.key];
+  useEffect(() => {
+    const keys = getParentKey(location.pathname);
+    if (keys.length > 0) {
+      setOpenKeys((prev) => Array.from(new Set([...prev, ...keys])));
     }
-    return [path];
-  };
-
-  const getOpenKeys = () => {
-    const path = location.pathname;
-    if (path.startsWith('/new-material')) return ['/new-material'];
-    if (path.startsWith('/ark-material')) return ['/ark-material'];
-    if (path.startsWith('/base')) return ['/base'];
-    return [];
-  };
+  }, [location.pathname]);
 
   return (
     <Menu
       mode="inline"
-      selectedKeys={getSelectedKeys()}
-      defaultOpenKeys={getOpenKeys()}
+      selectedKeys={getSelectedKey(location.pathname)}
+      openKeys={openKeys}
+      onOpenChange={setOpenKeys}
       items={menuItems}
-      onClick={handleMenuClick}
+      onClick={({ key }) => navigate(key)}
       style={{ height: '100%', borderRight: 0 }}
     />
   );

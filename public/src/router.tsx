@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import MainLayout from './components/Layout/MainLayout';
 import AuthGuard from './components/AuthGuard';
 import Login from './pages/Login';
+import OAuthCallback from './pages/OAuthCallback';
 import Dashboard from './pages/Dashboard';
 import MaterialUpload from './pages/Material/Upload';
 import MaterialList from './pages/Material/List';
@@ -21,6 +22,10 @@ const router = createBrowserRouter([
   {
     path: '/login',
     element: <Login />,
+  },
+  {
+    path: '/oauth/callback',
+    element: <OAuthCallback />,
   },
   {
     path: '/',
