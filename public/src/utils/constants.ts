@@ -5,7 +5,9 @@ export const TASK_STATUS = {
   PENDING: { label: '待执行', color: 'default' },
   RUNNING: { label: '执行中', color: 'processing' },
   COMPLETED: { label: '已完成', color: 'success' },
+  SUCCESS: { label: '已完成', color: 'success' },
   FAILED: { label: '失败', color: 'error' },
+  TIMEOUT: { label: '超时', color: 'warning' },
 } as const;
 
 // 结果等级

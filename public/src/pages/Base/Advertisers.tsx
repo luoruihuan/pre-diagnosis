@@ -11,7 +11,6 @@ import {
   Switch,
   message,
   Popconfirm,
-  Tag,
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';

@@ -16,7 +16,6 @@ import type {
   DiagnosisDetailResponse,
   NewMaterialCreateParams,
 } from '../types/diagnosis';
-import type { PaginationResponse } from '../types/common';
 
 class DiagnosisStore {
   tasks: DiagnosisTask[] = [];
