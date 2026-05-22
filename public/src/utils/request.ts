@@ -51,6 +51,12 @@ request.interceptors.response.use(
           const errorData = error.response?.data;
           const errorType = errorData?.data?.type || errorData?.type;
 
+          // 登录页的 401 直接往上抛，让登录页显示"用户名或密码错误"
+          if (window.location.pathname === '/login') {
+            message.error(errorData?.message || '用户名或密码错误');
+            break;
+          }
+
           if (
             errorType === 'OCEAN_ENGINE_UNAUTHORIZED' ||
             errorType === 'OCEAN_ENGINE_TOKEN_EXPIRED'
