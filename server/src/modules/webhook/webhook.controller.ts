@@ -44,8 +44,12 @@ export class WebhookController {
       throw new UnauthorizedException('签名验证失败');
     }
 
-    // 处理不同类型的事件
-    if (body.event === 'diagnosis.complete') {
+    // 处理不同类型的事件（巨量引擎事件标识）
+    if (
+      body.event === 'status.material.diagnose.agentad' ||
+      body.event === 'status.material.diagnose.agentqc' ||
+      body.event === 'diagnosis.complete' // 兼容旧格式
+    ) {
       await this.webhookService.handleDiagnosisComplete(body.data as any);
     }
 

@@ -1,12 +1,11 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
-import { ApiKeyGuard } from './common/guards/api-key.guard';
+import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -36,10 +35,9 @@ async function bootstrap() {
     new TransformInterceptor(),
   );
 
-  // 全局 API Key 认证（简单成熟的方案）
+  // 全局 JWT 认证
   const reflector = app.get(Reflector);
-  const configService = app.get(ConfigService);
-  app.useGlobalGuards(new ApiKeyGuard(configService, reflector));
+  app.useGlobalGuards(new JwtAuthGuard(reflector));
 
   // CORS
   app.enableCors();

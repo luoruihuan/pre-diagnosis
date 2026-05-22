@@ -13,6 +13,11 @@ import { DiagnosisConfigModule } from './modules/diagnosis-config/diagnosis-conf
 import { DiagnosisTaskModule } from './modules/diagnosis-task/diagnosis-task.module';
 import { OceanEngineModule } from './modules/ocean-engine/ocean-engine.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { StatisticsModule } from './modules/statistics/statistics.module';
+import { AdvertiserAccountModule } from './modules/advertiser-account/advertiser-account.module';
+import { SystemConfigModule } from './modules/system-config/system-config.module';
 
 @Module({
   imports: [
@@ -46,12 +51,19 @@ import { WebhookModule } from './modules/webhook/webhook.module';
       }),
     }),
 
+    // 认证模块
+    AuthModule,
+    UsersModule,
+
     // 业务模块
     MaterialModule,
     DiagnosisConfigModule,
     DiagnosisTaskModule,
     OceanEngineModule,
     WebhookModule,
+    StatisticsModule,
+    AdvertiserAccountModule,
+    SystemConfigModule,
   ],
   controllers: [AppController],
   providers: [AppService],

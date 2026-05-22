@@ -15,6 +15,22 @@ export const uploadMaterial = async (params: MaterialUploadParams): Promise<Mate
   });
 };
 
+// 上传视频至巨量引擎方舟（前测专用）
+export const uploadVideoToOcean = async (params: {
+  agentId: number;
+  fileName: string;
+  file: File;
+}): Promise<{ videoId: string; materialId: number; videoUrl: string }> => {
+  const formData = new FormData();
+  formData.append('agentId', String(params.agentId));
+  formData.append('fileName', params.fileName);
+  formData.append('video', params.file);
+
+  return request.post('/materials/upload-video', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
 // 获取素材列表
 export const getMaterialList = async (
   params: MaterialListParams

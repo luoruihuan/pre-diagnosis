@@ -7,6 +7,11 @@ import {
   Index,
 } from 'typeorm';
 
+export enum MaterialStatus {
+  ACTIVE = 'ACTIVE',
+  DELETED = 'DELETED',
+}
+
 @Entity('materials')
 export class Material {
   @PrimaryGeneratedColumn('uuid')
@@ -34,6 +39,14 @@ export class Material {
 
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, any>;
+
+  @Column({
+    type: 'enum',
+    enum: MaterialStatus,
+    default: MaterialStatus.ACTIVE,
+  })
+  @Index()
+  status: MaterialStatus;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

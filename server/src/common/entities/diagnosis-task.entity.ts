@@ -40,6 +40,22 @@ export class DiagnosisTask {
   @Index()
   oceanTaskId: string;
 
+  // 来源：NEW=新素材路径一, ARK=已有素材路径二
+  @Column({ type: 'varchar', length: 10, default: 'NEW' })
+  source: string;
+
+  // 复用广告ID（1.0）
+  @Column({ name: 'ref_ad_id', type: 'bigint', nullable: true })
+  refAdId: number;
+
+  // 复用广告ID（2.0）
+  @Column({ name: 'ref_promotion_id', type: 'bigint', nullable: true })
+  refPromotionId: number;
+
+  // 巨量返回的 agent_id
+  @Column({ name: 'agent_id', type: 'bigint', nullable: true })
+  agentId: number;
+
   @Column({
     type: 'enum',
     enum: DiagnosisStatus,

@@ -2,9 +2,9 @@ import React from 'react';
 import { Layout, Menu, Typography, theme } from 'antd';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
-  DashboardOutlined,
-  VideoCameraOutlined,
   ExperimentOutlined,
+  InboxOutlined,
+  BarChartOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
 
@@ -13,34 +13,35 @@ const { Title } = Typography;
 
 const menuItems = [
   {
-    key: '/dashboard',
-    icon: <DashboardOutlined />,
+    key: '/new-material',
+    icon: <ExperimentOutlined />,
+    label: '新素材检测',
+    children: [
+      { key: '/new-material', label: '发起前测' },
+      { key: '/new-material/tasks', label: '任务列表' },
+    ],
+  },
+  {
+    key: '/ark-material',
+    icon: <InboxOutlined />,
+    label: '已有素材检测',
+    children: [
+      { key: '/ark-material/tasks', label: '任务列表' },
+    ],
+  },
+  {
+    key: '/statistics',
+    icon: <BarChartOutlined />,
     label: '数据统计',
   },
   {
-    key: '/material',
-    icon: <VideoCameraOutlined />,
-    label: '素材管理',
-    children: [
-      { key: '/material/upload', label: '素材上传' },
-      { key: '/material/list', label: '素材列表' },
-    ],
-  },
-  {
-    key: '/diagnosis',
-    icon: <ExperimentOutlined />,
-    label: '前测诊断',
-    children: [
-      { key: '/diagnosis/create', label: '创建任务' },
-      { key: '/diagnosis/list', label: '任务列表' },
-    ],
-  },
-  {
-    key: '/config',
+    key: '/base',
     icon: <SettingOutlined />,
-    label: '配置管理',
+    label: '基础数据',
     children: [
-      { key: '/config/templates', label: '配置模板' },
+      { key: '/base/advertisers', label: '广告主账号' },
+      { key: '/base/configs', label: '诊断配置模板' },
+      { key: '/base/system', label: '系统配置' },
     ],
   },
 ];
@@ -52,10 +53,12 @@ const MainLayout: React.FC = () => {
 
   const getSelectedKeys = () => {
     const path = location.pathname;
-    // 精确匹配子路由
+    if (path === '/new-material') return ['/new-material'];
     for (const item of menuItems) {
       if (item.children) {
-        const child = item.children.find((c) => path.startsWith(c.key));
+        const child = item.children.find(
+          (c) => path.startsWith(c.key) && c.key !== item.key,
+        );
         if (child) return [child.key];
       }
       if (path === item.key) return [item.key];
@@ -65,9 +68,9 @@ const MainLayout: React.FC = () => {
 
   const getOpenKeys = () => {
     const path = location.pathname;
-    if (path.startsWith('/material')) return ['/material'];
-    if (path.startsWith('/diagnosis')) return ['/diagnosis'];
-    if (path.startsWith('/config')) return ['/config'];
+    if (path.startsWith('/new-material')) return ['/new-material'];
+    if (path.startsWith('/ark-material')) return ['/ark-material'];
+    if (path.startsWith('/base')) return ['/base'];
     return [];
   };
 
@@ -126,7 +129,6 @@ const MainLayout: React.FC = () => {
             background: 'transparent',
             lineHeight: '62px',
           }}
-
         />
       </Header>
 

@@ -18,4 +18,9 @@ export class QueryDiagnosisTaskDto extends PaginationDto {
   @IsEnum(DiagnosisStatus)
   @IsOptional()
   status?: DiagnosisStatus;
+
+  @ApiProperty({ description: '来源：NEW=新素材路径一, ARK=已有素材路径二', required: false })
+  @IsString()
+  @IsOptional()
+  source?: string;
 }

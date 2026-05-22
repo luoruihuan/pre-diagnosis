@@ -1,107 +1,145 @@
-import React, { useEffect, useState } from 'react';
-import { Card, Row, Col, Statistic, Table, Space } from 'antd';
+import React, { useEffect, useRef } from 'react';
+import { Card, Row, Col, Statistic, Table, Space, Button, Tag, Badge } from 'antd';
 import {
-  VideoCameraOutlined,
   ExperimentOutlined,
   CheckCircleOutlined,
-  ClockCircleOutlined,
+  CloseCircleOutlined,
+  SyncOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
-import { Column } from '@ant-design/charts';
 import { observer } from 'mobx-react-lite';
 import diagnosisStore from '../../stores/diagnosisStore';
-import materialStore from '../../stores/materialStore';
-import TaskStatusBadge from '../../components/TaskStatusBadge';
+import ResultTag from '../../components/ResultTag';
+import type { DiagnosisTask } from '../../types/diagnosis';
 import dayjs from 'dayjs';
 
+// 任务状态 Badge 配置
+const STATUS_CONFIG: Record<
+  string,
+  { status: 'processing' | 'success' | 'error' | 'default'; label: string }
+> = {
+  PENDING: { status: 'processing', label: '检测中' },
+  RUNNING: { status: 'processing', label: '检测中' },
+  SUCCESS: { status: 'success', label: '已完成' },
+  COMPLETED: { status: 'success', label: '已完成' },
+  FAILED: { status: 'error', label: '失败' },
+  TIMEOUT: { status: 'default', label: '超时' },
+};
+
 const Dashboard: React.FC = observer(() => {
-  const [stats, setStats] = useState({
-    totalMaterials: 0,
-    totalTasks: 0,
-    completedTasks: 0,
-    pendingTasks: 0,
-  });
+  const pollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const loadData = () => {
+    diagnosisStore.fetchTasks({ page: 1, pageSize: 20 });
+  };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const loadData = async () => {
-    // 加载素材统计
-    await materialStore.fetchMaterials({ page: 1, pageSize: 1, status: 'ACTIVE' });
+  // 自动5s轮询 PENDING/RUNNING 任务
+  useEffect(() => {
+    const tasks = diagnosisStore.tasks ?? [];
+    const hasPending = tasks.some(
+      (t) => t.status === 'PENDING' || t.status === 'RUNNING',
+    );
 
-    // 加载任务统计
-    await diagnosisStore.fetchTasks({ page: 1, pageSize: 10 });
+    if (hasPending && !pollingTimerRef.current) {
+      pollingTimerRef.current = setInterval(loadData, 5000);
+    } else if (!hasPending && pollingTimerRef.current) {
+      clearInterval(pollingTimerRef.current);
+      pollingTimerRef.current = null;
+    }
 
-    // 计算统计数据
-    const completedCount = diagnosisStore.tasks.filter((t) => t.status === 'COMPLETED').length;
-    const pendingCount = diagnosisStore.tasks.filter(
-      (t) => t.status === 'PENDING' || t.status === 'RUNNING'
-    ).length;
+    return () => {
+      if (pollingTimerRef.current) {
+        clearInterval(pollingTimerRef.current);
+        pollingTimerRef.current = null;
+      }
+    };
+  }, [(diagnosisStore.tasks ?? []).length]);
 
-    setStats({
-      totalMaterials: materialStore.total,
-      totalTasks: diagnosisStore.total,
-      completedTasks: completedCount,
-      pendingTasks: pendingCount,
-    });
-  };
+  const tasks = diagnosisStore.tasks ?? [];
 
-  // 最近任务列表
-  const recentTaskColumns = [
+  // 统计卡片数据（从 tasks 数组计算）
+  const runningCount = tasks.filter(
+    (t) => t.status === 'PENDING' || t.status === 'RUNNING',
+  ).length;
+  const completedCount = tasks.filter(
+    (t) => t.status === 'SUCCESS' || t.status === 'COMPLETED',
+  ).length;
+  const failedCount = tasks.filter((t) => t.status === 'FAILED').length;
+
+  const columns = [
     {
-      title: '任务名称',
-      dataIndex: 'taskName',
-      key: 'taskName',
+      title: '视频ID',
+      dataIndex: 'videoStrId',
+      key: 'videoStrId',
+      ellipsis: true,
+      render: (v: string, record: DiagnosisTask) => v || String(record.videoId),
     },
     {
-      title: '视频标题',
-      dataIndex: 'videoTitle',
-      key: 'videoTitle',
+      title: '广告主ID',
+      dataIndex: 'advertiserId',
+      key: 'advertiserId',
+      width: 110,
     },
     {
-      title: '状态',
+      title: '来源',
+      dataIndex: 'source',
+      key: 'source',
+      width: 100,
+      render: (source: string) => {
+        if (source === 'NEW') return <Tag color="blue">新素材</Tag>;
+        if (source === 'ARK') return <Tag color="green">已有素材</Tag>;
+        return <Tag color="default">{source ?? '-'}</Tag>;
+      },
+    },
+    {
+      title: '任务状态',
       dataIndex: 'status',
       key: 'status',
-      render: (status: any) => <TaskStatusBadge status={status} />,
+      width: 110,
+      render: (status: string) => {
+        const cfg = STATUS_CONFIG[status] ?? {
+          status: 'default' as const,
+          label: status,
+        };
+        return <Badge status={cfg.status} text={cfg.label} />;
+      },
+    },
+    {
+      title: 'AD优质',
+      key: 'adQuality',
+      width: 110,
+      render: (_: unknown, record: DiagnosisTask) => (
+        <ResultTag type="ad" value={record.result?.isAdHighQuality ?? 'UNKNOWN'} />
+      ),
+    },
+    {
+      title: '千川优质',
+      key: 'ecpQuality',
+      width: 110,
+      render: (_: unknown, record: DiagnosisTask) => (
+        <ResultTag type="ecp" value={record.result?.isEcpHighQuality ?? 'UNKNOWN'} />
+      ),
+    },
+    {
+      title: '首发',
+      key: 'firstPublish',
+      width: 90,
+      render: (_: unknown, record: DiagnosisTask) => (
+        <ResultTag type="first" value={record.result?.isFirstPublish ?? 'UNKNOWN'} />
+      ),
     },
     {
       title: '创建时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm'),
+      width: 180,
+      render: (t: string) => (t ? dayjs(t).format('YYYY-MM-DD HH:mm:ss') : '-'),
     },
   ];
-
-  // TODO: 对接后端月度统计接口
-  // 暂时隐藏图表，等待后端提供统计数据
-  const chartData: any[] = [];
-
-  const chartConfig = {
-    data: chartData,
-    xField: 'month',
-    yField: 'count',
-    label: {
-      position: 'top' as const,
-      style: {
-        fill: '#000000',
-        opacity: 0.6,
-      },
-    },
-    xAxis: {
-      label: {
-        autoHide: true,
-        autoRotate: false,
-      },
-    },
-    meta: {
-      month: {
-        alias: '月份',
-      },
-      count: {
-        alias: '任务数',
-      },
-    },
-  };
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -110,18 +148,8 @@ const Dashboard: React.FC = observer(() => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="素材总数"
-              value={stats.totalMaterials}
-              prefix={<VideoCameraOutlined />}
-              valueStyle={{ color: '#3f8600' }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="任务总数"
-              value={stats.totalTasks}
+              title="总任务数"
+              value={diagnosisStore.total}
               prefix={<ExperimentOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
@@ -130,8 +158,18 @@ const Dashboard: React.FC = observer(() => {
         <Col span={6}>
           <Card>
             <Statistic
+              title="检测中"
+              value={runningCount}
+              prefix={<SyncOutlined spin={runningCount > 0} />}
+              valueStyle={{ color: '#faad14' }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
               title="已完成"
-              value={stats.completedTasks}
+              value={completedCount}
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: '#52c41a' }}
             />
@@ -140,30 +178,35 @@ const Dashboard: React.FC = observer(() => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="待执行"
-              value={stats.pendingTasks}
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#faad14' }}
+              title="失败"
+              value={failedCount}
+              prefix={<CloseCircleOutlined />}
+              valueStyle={{ color: '#ff4d4f' }}
             />
           </Card>
         </Col>
       </Row>
 
-      {/* 任务趋势图 - 暂时隐藏，等待后端统计接口 */}
-      {chartData.length > 0 && (
-        <Card title="任务趋势">
-          <Column {...chartConfig} />
-        </Card>
-      )}
-
-      {/* 最近任务 */}
-      <Card title="最近任务">
+      {/* 任务列表 */}
+      <Card
+        title="任务进度总览（最近20条）"
+        extra={
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={loadData}
+            loading={diagnosisStore.loading}
+          >
+            刷新
+          </Button>
+        }
+      >
         <Table
-          columns={recentTaskColumns}
-          dataSource={diagnosisStore.tasks.slice(0, 5)}
+          columns={columns}
+          dataSource={tasks}
           rowKey="id"
-          pagination={false}
           loading={diagnosisStore.loading}
+          pagination={false}
+          scroll={{ x: 1000 }}
         />
       </Card>
     </Space>

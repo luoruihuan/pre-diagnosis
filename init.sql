@@ -4,6 +4,9 @@
 -- 启用 UUID 扩展
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- 创建枚举类型
+CREATE TYPE material_status AS ENUM ('ACTIVE', 'DELETED');
+
 -- 1. 素材表 (materials)
 CREATE TABLE IF NOT EXISTS materials (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -14,6 +17,7 @@ CREATE TABLE IF NOT EXISTS materials (
     description TEXT,
     duration INTEGER,
     metadata JSONB,
+    status material_status NOT NULL DEFAULT 'ACTIVE',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -21,6 +25,7 @@ CREATE TABLE IF NOT EXISTS materials (
 -- 素材表索引
 CREATE INDEX IF NOT EXISTS idx_materials_advertiser_id ON materials(advertiser_id);
 CREATE INDEX IF NOT EXISTS idx_materials_video_id ON materials(video_id);
+CREATE INDEX IF NOT EXISTS idx_materials_status ON materials(status);
 
 -- 2. 诊断配置表 (diagnosis_configs)
 CREATE TABLE IF NOT EXISTS diagnosis_configs (
@@ -94,3 +99,41 @@ ON CONFLICT DO NOTHING;
 COMMENT ON TABLE materials IS '视频素材表';
 COMMENT ON TABLE diagnosis_configs IS '诊断配置模板表';
 COMMENT ON TABLE diagnosis_tasks IS '诊断任务表';
+
+-- 4. 用户表 (users)
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  username VARCHAR(50) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+CREATE TRIGGER update_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+COMMENT ON TABLE users IS '用户表';
+
+-- 5. 广告主账号表 (advertiser_accounts)
+CREATE TABLE IF NOT EXISTS advertiser_accounts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  agent_id BIGINT NOT NULL,
+  advertiser_id BIGINT NOT NULL,
+  name VARCHAR(100),
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(agent_id, advertiser_id)
+);
+
+DROP TRIGGER IF EXISTS update_advertiser_accounts_updated_at ON advertiser_accounts;
+CREATE TRIGGER update_advertiser_accounts_updated_at
+    BEFORE UPDATE ON advertiser_accounts
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+COMMENT ON TABLE advertiser_accounts IS '广告主账号表';

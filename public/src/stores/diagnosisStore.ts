@@ -3,6 +3,7 @@ import { message } from 'antd';
 import {
   getDiagnosisTaskList,
   createDiagnosisTask,
+  createNewMaterialTask,
   getDiagnosisTaskDetail,
   cancelDiagnosisTask,
   retryDiagnosisTask,
@@ -13,6 +14,7 @@ import type {
   DiagnosisCreateParams,
   DiagnosisListParams,
   DiagnosisDetailResponse,
+  NewMaterialCreateParams,
 } from '../types/diagnosis';
 import type { PaginationResponse } from '../types/common';
 
@@ -31,13 +33,18 @@ class DiagnosisStore {
   async fetchTasks(params: DiagnosisListParams) {
     this.loading = true;
     try {
-      const response: PaginationResponse<DiagnosisTask> = await getDiagnosisTaskList(params);
+      const response = await getDiagnosisTaskList(params) as any;
       runInAction(() => {
-        this.tasks = response.list;
-        this.total = response.total;
+        // 后端返回 items 字段，兼容 list 字段
+        this.tasks = response?.items ?? response?.list ?? [];
+        this.total = response?.total ?? 0;
       });
     } catch (error) {
       console.error('获取任务列表失败:', error);
+      runInAction(() => {
+        this.tasks = [];
+        this.total = 0;
+      });
     } finally {
       runInAction(() => {
         this.loading = false;
@@ -54,6 +61,23 @@ class DiagnosisStore {
       return task;
     } catch (error) {
       console.error('创建任务失败:', error);
+      throw error;
+    } finally {
+      runInAction(() => {
+        this.loading = false;
+      });
+    }
+  }
+
+  // 创建新素材检测任务
+  async createNewMaterialTask(params: NewMaterialCreateParams) {
+    this.loading = true;
+    try {
+      const task = await createNewMaterialTask(params);
+      message.success('前测任务创建成功');
+      return task;
+    } catch (error) {
+      console.error('创建前测任务失败:', error);
       throw error;
     } finally {
       runInAction(() => {

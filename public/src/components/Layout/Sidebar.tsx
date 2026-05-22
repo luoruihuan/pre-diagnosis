@@ -2,9 +2,10 @@ import React from 'react';
 import { Menu } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  DashboardOutlined,
-  VideoCameraOutlined,
+  HomeOutlined,
   ExperimentOutlined,
+  InboxOutlined,
+  BarChartOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
 
@@ -15,48 +16,39 @@ const Sidebar: React.FC = () => {
   const menuItems = [
     {
       key: '/dashboard',
-      icon: <DashboardOutlined />,
+      icon: <HomeOutlined />,
+      label: '首页',
+    },
+    {
+      key: '/new-material',
+      icon: <ExperimentOutlined />,
+      label: '新素材检测',
+      children: [
+        { key: '/new-material', label: '发起前测' },
+        { key: '/new-material/tasks', label: '任务列表' },
+      ],
+    },
+    {
+      key: '/ark-material',
+      icon: <InboxOutlined />,
+      label: '已有素材检测',
+      children: [
+        { key: '/ark-material/tasks', label: '任务列表' },
+      ],
+    },
+    {
+      key: '/statistics',
+      icon: <BarChartOutlined />,
       label: '数据统计',
     },
     {
-      key: '/material',
-      icon: <VideoCameraOutlined />,
-      label: '素材管理',
-      children: [
-        {
-          key: '/material/upload',
-          label: '素材上传',
-        },
-        {
-          key: '/material/list',
-          label: '素材列表',
-        },
-      ],
-    },
-    {
-      key: '/diagnosis',
-      icon: <ExperimentOutlined />,
-      label: '前测诊断',
-      children: [
-        {
-          key: '/diagnosis/create',
-          label: '创建任务',
-        },
-        {
-          key: '/diagnosis/list',
-          label: '任务列表',
-        },
-      ],
-    },
-    {
-      key: '/config',
+      key: '/base',
       icon: <SettingOutlined />,
-      label: '配置管理',
+      label: '基础数据',
       children: [
-        {
-          key: '/config/templates',
-          label: '配置模板',
-        },
+        { key: '/base/advertisers', label: '广告主账号' },
+        { key: '/base/configs', label: '诊断配置模板' },
+        { key: '/base/system', label: '系统配置' },
       ],
     },
   ];
@@ -65,18 +57,29 @@ const Sidebar: React.FC = () => {
     navigate(key);
   };
 
-  // 获取当前选中的菜单项
   const getSelectedKeys = () => {
     const path = location.pathname;
+    // 精确匹配：/new-material 首页（发起前测）
+    if (path === '/new-material') return ['/new-material'];
+    // 子路径匹配
+    for (const item of menuItems) {
+      if (item.children) {
+        const child = item.children.find((c) => path.startsWith(c.key) && c.key !== item.key);
+        if (child) return [child.key];
+        // 匹配父级 index（如 /new-material 本身）
+        const indexChild = item.children.find((c) => c.key === item.key && path === item.key);
+        if (indexChild) return [indexChild.key];
+      }
+      if (path === item.key) return [item.key];
+    }
     return [path];
   };
 
-  // 获取当前展开的菜单项
   const getOpenKeys = () => {
     const path = location.pathname;
-    if (path.startsWith('/material')) return ['/material'];
-    if (path.startsWith('/diagnosis')) return ['/diagnosis'];
-    if (path.startsWith('/config')) return ['/config'];
+    if (path.startsWith('/new-material')) return ['/new-material'];
+    if (path.startsWith('/ark-material')) return ['/ark-material'];
+    if (path.startsWith('/base')) return ['/base'];
     return [];
   };
 

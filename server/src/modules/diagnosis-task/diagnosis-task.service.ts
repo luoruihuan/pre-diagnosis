@@ -32,7 +32,15 @@ export class DiagnosisTaskService {
   ) {}
 
   async create(createTaskDto: CreateDiagnosisTaskDto): Promise<DiagnosisTask> {
-    const { advertiserId, videoId, configId } = createTaskDto;
+    const {
+      advertiserId,
+      videoId,
+      configId,
+      agentId,
+      refAdId,
+      refPromotionId,
+      source = 'NEW',
+    } = createTaskDto;
 
     // 检查 QPS 限流
     const canProceed = await this.oceanEngineService.checkQpsLimit(
@@ -47,46 +55,57 @@ export class DiagnosisTaskService {
       );
     }
 
-    // 获取配置
-    let config = null;
-    if (configId) {
-      config = await this.configService.findOne(configId);
-    }
-
-    // 调用巨量引擎 API 创建诊断任务
-    let oceanTaskId: string;
+    // 调用巨量引擎 API 创建前测任务
+    let oceanTaskId: string | null = null;
     try {
-      const result = await this.oceanEngineService.createDiagnosisTask(
+      const result = await this.oceanEngineService.createDiagnosisTask({
+        agentId,
         advertiserId,
-        videoId,
-        config?.config,
-      );
-      oceanTaskId = result.task_id;
+        videoIds: [videoId],
+        refAdId,
+        refPromotionId,
+      });
+
+      // 取第一个成功的 taskId
+      if (result.taskIds && result.taskIds.length > 0) {
+        oceanTaskId = String(result.taskIds[0]);
+      } else {
+        // 全部失败
+        const failInfo = result.failVideoIds?.[videoId];
+        const errMsg = failInfo
+          ? `[${failInfo.errCode}] ${failInfo.errMessage}`
+          : '巨量引擎未返回任务 ID';
+        throw new Error(errMsg);
+      }
     } catch (error) {
       this.logger.error(`创建诊断任务失败: ${error.message}`, error.stack);
       throw new BadRequestException(`创建诊断任务失败: ${error.message}`);
     }
 
-    // 保存任务记录
+    // 保存任务记录（status=PENDING）
     const task = this.taskRepository.create({
       advertiserId,
       videoId,
       configId,
       oceanTaskId,
+      source,
+      agentId,
+      refAdId,
+      refPromotionId,
       status: DiagnosisStatus.PENDING,
     });
 
     const savedTask = await this.taskRepository.save(task);
 
-    // 加入轮询队列
+    // 加入轮询队列（最多 12 次，每次 10s 间隔）
     await this.pollingQueue.add(
       'poll-task-status',
       { taskId: savedTask.id },
       {
-        attempts: 12, // 最多轮询 12 次
+        attempts: 12,
         backoff: {
           type: 'fixed',
-          delay: 5000, // 每 5 秒轮询一次
+          delay: 10000,
         },
       },
     );
@@ -98,7 +117,7 @@ export class DiagnosisTaskService {
   async findAll(
     queryDto: QueryDiagnosisTaskDto,
   ): Promise<PaginatedResponse<DiagnosisTask>> {
-    const { page, pageSize, advertiserId, videoId, status } = queryDto;
+    const { page, pageSize, advertiserId, videoId, status, source } = queryDto;
     const skip = (page - 1) * pageSize;
 
     const queryBuilder = this.taskRepository
@@ -116,6 +135,10 @@ export class DiagnosisTaskService {
 
     if (status) {
       queryBuilder.andWhere('task.status = :status', { status });
+    }
+
+    if (source) {
+      queryBuilder.andWhere('task.source = :source', { source });
     }
 
     const [items, total] = await queryBuilder
@@ -193,29 +216,48 @@ export class DiagnosisTaskService {
       return;
     }
 
+    if (!task.oceanTaskId || !task.agentId) {
+      throw new Error(`任务 ${taskId} 缺少 oceanTaskId 或 agentId，无法轮询`);
+    }
+
     try {
-      // 查询巨量引擎任务状态
-      const result = await this.oceanEngineService.getDiagnosisTaskStatus(
-        task.advertiserId,
-        task.oceanTaskId,
+      // 查询巨量引擎任务结果
+      const { taskList } = await this.oceanEngineService.getDiagnosisTaskResult(
+        task.agentId,
+        [Number(task.oceanTaskId)],
       );
 
-      if (result.status === 'SUCCESS') {
-        await this.updateStatus(
-          taskId,
-          DiagnosisStatus.SUCCESS,
-          result.result,
-        );
-      } else if (result.status === 'FAILED') {
+      const taskResult = taskList.find(
+        (t) => String(t.taskId) === task.oceanTaskId,
+      );
+
+      if (!taskResult) {
+        // 巨量未返回该任务，继续等待
+        task.retryCount += 1;
+        await this.taskRepository.save(task);
+        throw new Error('巨量引擎暂未返回任务结果，继续轮询');
+      }
+
+      if (taskResult.status === 'SUCCESS') {
+        await this.updateStatus(taskId, DiagnosisStatus.SUCCESS, {
+          isAdHighQuality: taskResult.isAdHighQuality,
+          isEcpHighQuality: taskResult.isEcpHighQuality,
+          isFirstPublish: taskResult.isFirstPublish,
+          notAdHighQualityReason: taskResult.notAdHighQualityReason,
+          notEcpHighQualityReason: taskResult.notEcpHighQualityReason,
+        });
+      } else if (taskResult.status === 'FAILED') {
         await this.updateStatus(
           taskId,
           DiagnosisStatus.FAILED,
           null,
-          result.error_message,
+          '巨量引擎前测任务失败',
         );
-      } else if (result.status === 'PROCESSING') {
+      } else {
+        // PENDING：继续轮询
         await this.updateStatus(taskId, DiagnosisStatus.PROCESSING);
-        // 继续轮询（由 Bull 重试机制处理）
+        task.retryCount += 1;
+        await this.taskRepository.save(task);
         throw new Error('任务处理中，继续轮询');
       }
     } catch (error) {
@@ -225,13 +267,10 @@ export class DiagnosisTaskService {
           taskId,
           DiagnosisStatus.TIMEOUT,
           null,
-          '任务超时',
+          '任务超时（已轮询 12 次）',
         );
       } else {
-        // 增加重试计数
-        task.retryCount += 1;
-        await this.taskRepository.save(task);
-        throw error; // 继续重试
+        throw error; // 让 Bull 继续重试
       }
     }
   }

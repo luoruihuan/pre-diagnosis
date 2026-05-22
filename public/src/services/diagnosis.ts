@@ -4,12 +4,18 @@ import type {
   DiagnosisCreateParams,
   DiagnosisListParams,
   DiagnosisDetailResponse,
+  NewMaterialCreateParams,
 } from '../types/diagnosis';
 import type { PaginationResponse } from '../types/common';
 
 // 创建诊断任务
 export const createDiagnosisTask = async (params: DiagnosisCreateParams): Promise<DiagnosisTask> => {
   return request.post('/diagnosis-tasks', params);
+};
+
+// 创建新素材检测任务（路径一）
+export const createNewMaterialTask = async (params: NewMaterialCreateParams): Promise<DiagnosisTask> => {
+  return request.post('/diagnosis-tasks', { ...params, source: 'NEW' });
 };
 
 // 获取任务列表

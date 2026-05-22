@@ -1,25 +1,21 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
 import { message } from 'antd';
 
-// API Key（开发环境使用默认值，生产环境从环境变量读取）
-const API_KEY = import.meta.env.VITE_API_KEY || 'dev-api-key-12345';
-
 // 创建 axios 实例
 const request: AxiosInstance = axios.create({
   baseURL: '/api',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
-    'X-API-Key': API_KEY, // 添加 API Key 认证
   },
 });
 
-// 请求拦截器
+// 请求拦截器：注入 Bearer JWT
 request.interceptors.request.use(
   (config) => {
-    // 确保每个请求都带上 API Key
-    if (!config.headers['X-API-Key']) {
-      config.headers['X-API-Key'] = API_KEY;
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },
@@ -52,8 +48,9 @@ request.interceptors.response.use(
 
       switch (status) {
         case 401:
-          message.error('未授权，请重新登录');
-          // 可以跳转到登录页
+          message.error('登录已过期，请重新登录');
+          localStorage.removeItem('access_token');
+          window.location.href = '/login';
           break;
         case 403:
           message.error('拒绝访问');

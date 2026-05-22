@@ -1,14 +1,10 @@
-import {
-  Injectable,
-  Logger,
-  UnauthorizedException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import Redis from 'ioredis';
 import * as crypto from 'crypto';
 import { DiagnosisTaskService } from '../diagnosis-task/diagnosis-task.service';
+import { OceanEngineService } from '../ocean-engine/ocean-engine.service';
 import { DiagnosisStatus } from '../../common/enums/diagnosis-status.enum';
 
 @Injectable()
@@ -19,6 +15,7 @@ export class WebhookService {
   constructor(
     private readonly configService: ConfigService,
     private readonly taskService: DiagnosisTaskService,
+    private readonly oceanEngineService: OceanEngineService,
     @InjectRedis() private readonly redis: Redis,
   ) {
     this.webhookSecret = this.configService.get<string>(
@@ -28,6 +25,7 @@ export class WebhookService {
 
   /**
    * 验证 Webhook 签名（防时序攻击 + 防重放攻击）
+   * 签名算法：HMAC-SHA256(timestamp + "." + body, webhookSecret)
    */
   async verifySignature(
     timestamp: string,
@@ -40,7 +38,7 @@ export class WebhookService {
     const now = Date.now();
     const timeDiff = Math.abs(now - requestTime);
 
-    if (timeDiff > 300000) { // 5分钟 = 300000ms
+    if (timeDiff > 300000) {
       this.logger.warn(`时间戳过期: ${timestamp}, 时间差: ${timeDiff}ms`);
       return false;
     }
@@ -54,10 +52,10 @@ export class WebhookService {
       return false;
     }
 
-    // 3. 验证签名（使用时间恒定比较防止时序攻击）
+    // 3. 验证签名（文档要求：HMAC-SHA256(timestamp + "." + body, secret)）
     const expectedSignature = crypto
       .createHmac('sha256', this.webhookSecret)
-      .update(timestamp + body)
+      .update(timestamp + '.' + body)
       .digest('hex');
 
     try {
@@ -80,44 +78,62 @@ export class WebhookService {
 
   /**
    * 处理诊断任务完成事件
+   * 文档要求：收到回调后调用接口三（/diagnosis_task/agent/get/）��取完整结果，不直接使用回调 body 中的数据
    */
   async handleDiagnosisComplete(data: {
-    task_id: string;
-    advertiser_id: string;
     video_id: string;
-    status: string;
-    result?: Record<string, any>;
-    error_message?: string;
+    agent_id: number;
+    task_id: number;
+    status: 'SUCCESS' | 'FAILED';
   }): Promise<void> {
-    const { task_id, status, result, error_message } = data;
+    const { task_id, agent_id, status } = data;
 
-    this.logger.log(`收到 Webhook 事件: task_id=${task_id}, status=${status}`);
+    this.logger.log(`收到前测完成回调: task_id=${task_id}, status=${status}`);
 
-    // 直接通过 oceanTaskId 查找任务（修复全表扫描问题）
-    const task = await this.taskService.findByOceanTaskId(task_id);
-
+    // 通过 oceanTaskId 查找本地任务
+    const task = await this.taskService.findByOceanTaskId(String(task_id));
     if (!task) {
-      this.logger.warn(`未找到任务: oceanTaskId=${task_id}`);
+      this.logger.warn(`未找到本地任务: oceanTaskId=${task_id}`);
       return;
     }
 
-    // 更新任务状态
-    let diagnosisStatus: DiagnosisStatus;
-    if (status === 'SUCCESS') {
-      diagnosisStatus = DiagnosisStatus.SUCCESS;
-    } else if (status === 'FAILED') {
-      diagnosisStatus = DiagnosisStatus.FAILED;
-    } else {
-      diagnosisStatus = DiagnosisStatus.PROCESSING;
+    if (status === 'FAILED') {
+      await this.taskService.updateStatus(task.id, DiagnosisStatus.FAILED, null, '巨量引擎前测失败');
+      this.logger.log(`任务标记为失败: ${task.id}`);
+      return;
     }
 
-    await this.taskService.updateStatus(
-      task.id,
-      diagnosisStatus,
-      result,
-      error_message,
-    );
+    // SUCCESS：调用接口三获取完整前测结果
+    try {
+      const resolvedAgentId = agent_id ?? task.agentId;
+      const { taskList } = await this.oceanEngineService.getDiagnosisTaskResult(
+        resolvedAgentId,
+        [task_id],
+      );
 
-    this.logger.log(`任务状态已更新: ${task.id} -> ${diagnosisStatus}`);
+      const taskResult = taskList.find((t) => t.taskId === task_id);
+      if (!taskResult) {
+        this.logger.warn(`接口三未返回 task_id=${task_id} 的结果`);
+        await this.taskService.updateStatus(task.id, DiagnosisStatus.SUCCESS, null, null);
+        return;
+      }
+
+      const result = {
+        isAdHighQuality: taskResult.isAdHighQuality,
+        isEcpHighQuality: taskResult.isEcpHighQuality,
+        isFirstPublish: taskResult.isFirstPublish,
+        notAdHighQualityReason: taskResult.notAdHighQualityReason,
+        notEcpHighQualityReason: taskResult.notEcpHighQualityReason,
+      };
+
+      await this.taskService.updateStatus(task.id, DiagnosisStatus.SUCCESS, result, null);
+      this.logger.log(
+        `任务结果已更新: ${task.id}, AD优质=${result.isAdHighQuality}, 千川优质=${result.isEcpHighQuality}, 首发=${result.isFirstPublish}`,
+      );
+    } catch (error) {
+      this.logger.error(`查询前测结果失败: ${error.message}`);
+      // 查询失败时仍标记成功，结果留空，等待轮询补全
+      await this.taskService.updateStatus(task.id, DiagnosisStatus.SUCCESS, null, null);
+    }
   }
 }
