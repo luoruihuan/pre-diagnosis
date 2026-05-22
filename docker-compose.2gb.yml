@@ -91,6 +91,13 @@ services:
       OCEAN_ENGINE_APP_ID: your_app_id
       OCEAN_ENGINE_APP_SECRET: your_app_secret
       OCEAN_ENGINE_WEBHOOK_SECRET: your_webhook_secret
+      # OAuth 回调地址（部署后填写实际域名）
+      OCEAN_ENGINE_REDIRECT_URI: https://luoruihuan.top/api/auth/ocean-engine/callback
+      OCEAN_ENGINE_FRONTEND_CALLBACK: https://luoruihuan.top/oauth/callback
+
+      # JWT 配置（⚠️ 生产环境请修改为随机强密钥）
+      JWT_SECRET: change-this-to-a-random-secret-in-production
+      JWT_EXPIRES_IN: 8h
 
       # 服务配置
       PORT: 3000
