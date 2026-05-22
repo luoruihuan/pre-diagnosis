@@ -1,6 +1,7 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -37,7 +38,8 @@ async function bootstrap() {
 
   // 全局 API Key 认证（简单成熟的方案）
   const reflector = app.get(Reflector);
-  app.useGlobalGuards(new ApiKeyGuard(app.get('ConfigService'), reflector));
+  const configService = app.get(ConfigService);
+  app.useGlobalGuards(new ApiKeyGuard(configService, reflector));
 
   // CORS
   app.enableCors();

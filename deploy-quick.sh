@@ -144,7 +144,10 @@ fi
 if docker exec diagnosis-redis redis-cli -a redis_password ping > /dev/null 2>&1; then
     echo -e "${GREEN}✓ Redis 服务正常${NC}"
 else
-    echo -e "${YELLOW}⚠ Redis 服务未响应${NC}"cho ""
+    echo -e "${YELLOW}⚠ Redis 服务未响应${NC}"
+fi
+
+echo ""
 echo "=========================================="
 echo "  部署完成"
 echo "=========================================="
