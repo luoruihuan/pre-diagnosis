@@ -69,7 +69,8 @@ export interface SystemConfig {
   oceanEngineAppId: string;
   oceanEngineAppSecret: string;
   oceanEngineWebhookSecret: string;
-  oceanEngineAccessToken: string;
+  oceanEngineRedirectUri: string;
+  oceanEngineFrontendCallback: string;
 }
 
 // 获取系统配置

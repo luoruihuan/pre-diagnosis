@@ -200,7 +200,7 @@ const SystemConfigPage: React.FC = () => {
           type="info"
           showIcon
           message="配置说明"
-          description="敏感字段（App ID、App Secret 等）当前以脱敏形式展示。若需修改，请直接填写新值；若不修改，保持原值（含 ****）不变即可，系统会自动跳过脱敏占位值。修改后重启服务生效。"
+          description="修改 App ID 或 App Secret 后，OAuth 授权会自动清除，需重新授权。敏感字段以脱敏形式展示，若不修改请保持原值不变。配置保存后立即生效，无需重启服务。"
           style={{ marginBottom: 24 }}
         />
         <Spin spinning={loading}>
@@ -230,8 +230,20 @@ const SystemConfigPage: React.FC = () => {
               <Input.Password placeholder="请输入 Webhook Secret（留空则不修改）" />
             </Form.Item>
 
-            <Form.Item label="Access Token" name="oceanEngineAccessToken">
-              <Input.Password placeholder="请输入 Access Token（留空则不修改）" />
+            <Form.Item
+              label="OAuth 回调地址"
+              name="oceanEngineRedirectUri"
+              tooltip="巨量引擎授权完成后回调的后台地址，需与开放平台应用配置一致"
+            >
+              <Input placeholder="https://yourdomain.com/api/auth/ocean-engine/callback" />
+            </Form.Item>
+
+            <Form.Item
+              label="授权成功跳转地址"
+              name="oceanEngineFrontendCallback"
+              tooltip="OAuth 授权完成后前端跳转的页面地址"
+            >
+              <Input placeholder="https://yourdomain.com/oauth/callback" />
             </Form.Item>
 
             <Form.Item>

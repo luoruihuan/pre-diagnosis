@@ -1,27 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import Redis from 'ioredis';
 import * as crypto from 'crypto';
 import { DiagnosisTaskService } from '../diagnosis-task/diagnosis-task.service';
 import { OceanEngineService } from '../ocean-engine/ocean-engine.service';
+import { OceanConfigService } from '../system-config/ocean-config.service';
 import { DiagnosisStatus } from '../../common/enums/diagnosis-status.enum';
 
 @Injectable()
 export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
-  private readonly webhookSecret: string;
 
   constructor(
-    private readonly configService: ConfigService,
+    private readonly oceanConfig: OceanConfigService,
     private readonly taskService: DiagnosisTaskService,
     private readonly oceanEngineService: OceanEngineService,
     @InjectRedis() private readonly redis: Redis,
-  ) {
-    this.webhookSecret = this.configService.get<string>(
-      'oceanEngine.webhookSecret',
-    );
-  }
+  ) {}
 
   /**
    * 验证 Webhook 签名（防时序攻击 + 防重放攻击）
@@ -54,7 +49,7 @@ export class WebhookService {
 
     // 3. 验证签名（文档要求：HMAC-SHA256(timestamp + "." + body, secret)）
     const expectedSignature = crypto
-      .createHmac('sha256', this.webhookSecret)
+      .createHmac('sha256', this.oceanConfig.webhookSecret)
       .update(timestamp + '.' + body)
       .digest('hex');
 

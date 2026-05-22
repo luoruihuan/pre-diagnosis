@@ -1,9 +1,9 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import Redis from 'ioredis';
 import axios from 'axios';
 import * as crypto from 'crypto';
+import { OceanConfigService } from '../system-config/ocean-config.service';
 
 interface TokenResponse {
   code: number;
@@ -31,33 +31,16 @@ export class OceanEngineTokenService {
   private readonly OAUTH_BASE = 'https://open.oceanengine.com';
 
   constructor(
-    private readonly configService: ConfigService,
+    private readonly oceanConfig: OceanConfigService,
     @InjectRedis() private readonly redis: Redis,
   ) {}
 
-  // ─── 配置读取 ────────────────────────────────────────────────────────────────
+  // ─── 配置读取（从 OceanConfigService 内存缓存读，立即生效）────────────────────
 
-  private get appId(): string {
-    return this.configService.get<string>('oceanEngine.appId') ?? '';
-  }
-
-  private get appSecret(): string {
-    return this.configService.get<string>('oceanEngine.appSecret') ?? '';
-  }
-
-  private get redirectUri(): string {
-    return (
-      this.configService.get<string>('oceanEngine.redirectUri') ??
-      'http://localhost:3000/api/auth/ocean-engine/callback'
-    );
-  }
-
-  get frontendCallback(): string {
-    return (
-      this.configService.get<string>('oceanEngine.frontendCallback') ??
-      'http://localhost:5173/base/system'
-    );
-  }
+  private get appId(): string { return this.oceanConfig.appId; }
+  private get appSecret(): string { return this.oceanConfig.appSecret; }
+  private get redirectUri(): string { return this.oceanConfig.redirectUri; }
+  get frontendCallback(): string { return this.oceanConfig.frontendCallback; }
 
   // ─── 授权 URL ────────────────────────────────────────────────────────────────
 

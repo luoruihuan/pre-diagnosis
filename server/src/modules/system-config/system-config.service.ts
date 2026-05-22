@@ -1,81 +1,63 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as fs from 'fs';
-import * as path from 'path';
+import { OceanConfigService, OCEAN_CONFIG_KEYS } from './ocean-config.service';
+import { OceanEngineTokenService } from '../ocean-engine/ocean-engine-token.service';
 
 export interface SystemConfigDto {
   oceanEngineBaseUrl: string;
   oceanEngineAppId: string;
   oceanEngineAppSecret: string;
   oceanEngineWebhookSecret: string;
-  oceanEngineAccessToken: string;
-}
-
-function maskSecret(value: string | undefined): string {
-  if (!value) return '';
-  if (value.length <= 4) return '****';
-  return value.slice(0, 4) + '****';
+  oceanEngineRedirectUri: string;
+  oceanEngineFrontendCallback: string;
 }
 
 @Injectable()
 export class SystemConfigService {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly oceanConfig: OceanConfigService,
+    private readonly tokenService: OceanEngineTokenService,
+  ) {}
 
   getConfig(): SystemConfigDto {
+    const masked = this.oceanConfig.getAllMasked();
     return {
-      oceanEngineBaseUrl:
-        this.configService.get<string>('OCEAN_ENGINE_BASE_URL') || '',
-      oceanEngineAppId: maskSecret(
-        this.configService.get<string>('OCEAN_ENGINE_APP_ID'),
-      ),
-      oceanEngineAppSecret: maskSecret(
-        this.configService.get<string>('OCEAN_ENGINE_APP_SECRET'),
-      ),
-      oceanEngineWebhookSecret: maskSecret(
-        this.configService.get<string>('OCEAN_ENGINE_WEBHOOK_SECRET'),
-      ),
-      oceanEngineAccessToken: maskSecret(
-        this.configService.get<string>('OCEAN_ENGINE_ACCESS_TOKEN'),
-      ),
+      oceanEngineBaseUrl: masked[OCEAN_CONFIG_KEYS.BASE_URL],
+      oceanEngineAppId: masked[OCEAN_CONFIG_KEYS.APP_ID],
+      oceanEngineAppSecret: masked[OCEAN_CONFIG_KEYS.APP_SECRET],
+      oceanEngineWebhookSecret: masked[OCEAN_CONFIG_KEYS.WEBHOOK_SECRET],
+      oceanEngineRedirectUri: masked[OCEAN_CONFIG_KEYS.REDIRECT_URI],
+      oceanEngineFrontendCallback: masked[OCEAN_CONFIG_KEYS.FRONTEND_CALLBACK],
     };
   }
 
-  updateConfig(updates: Partial<SystemConfigDto>): { message: string } {
-    // 将更新写入 .env 文件（重启后生效）
-    const envPath = path.resolve(process.cwd(), '.env');
-    let envContent = '';
-
-    try {
-      envContent = fs.readFileSync(envPath, 'utf-8');
-    } catch {
-      // .env 不存在时从空内容开始
-    }
-
-    const keyMap: Record<keyof SystemConfigDto, string> = {
-      oceanEngineBaseUrl: 'OCEAN_ENGINE_BASE_URL',
-      oceanEngineAppId: 'OCEAN_ENGINE_APP_ID',
-      oceanEngineAppSecret: 'OCEAN_ENGINE_APP_SECRET',
-      oceanEngineWebhookSecret: 'OCEAN_ENGINE_WEBHOOK_SECRET',
-      oceanEngineAccessToken: 'OCEAN_ENGINE_ACCESS_TOKEN',
+  async updateConfig(updates: Partial<SystemConfigDto>): Promise<{ message: string }> {
+    const fieldMap: Record<keyof SystemConfigDto, string> = {
+      oceanEngineBaseUrl: OCEAN_CONFIG_KEYS.BASE_URL,
+      oceanEngineAppId: OCEAN_CONFIG_KEYS.APP_ID,
+      oceanEngineAppSecret: OCEAN_CONFIG_KEYS.APP_SECRET,
+      oceanEngineWebhookSecret: OCEAN_CONFIG_KEYS.WEBHOOK_SECRET,
+      oceanEngineRedirectUri: OCEAN_CONFIG_KEYS.REDIRECT_URI,
+      oceanEngineFrontendCallback: OCEAN_CONFIG_KEYS.FRONTEND_CALLBACK,
     };
 
-    for (const [field, envKey] of Object.entries(keyMap) as [
-      keyof SystemConfigDto,
-      string,
-    ][]) {
-      const newValue = updates[field];
-      // 跳过脱敏占位值（包含 ****）
-      if (newValue === undefined || newValue.includes('****')) continue;
-
-      const regex = new RegExp(`^${envKey}=.*$`, 'm');
-      if (regex.test(envContent)) {
-        envContent = envContent.replace(regex, `${envKey}=${newValue}`);
-      } else {
-        envContent += `\n${envKey}=${newValue}`;
+    const dbUpdates: Record<string, string> = {};
+    for (const [field, dbKey] of Object.entries(fieldMap) as [keyof SystemConfigDto, string][]) {
+      const val = updates[field];
+      if (val !== undefined && val !== '' && !val.includes('****')) {
+        dbUpdates[dbKey] = val;
       }
     }
 
-    fs.writeFileSync(envPath, envContent, 'utf-8');
-    return { message: '系统配置已更新，重启服务后生效' };
+    const { credentialsChanged } = await this.oceanConfig.updateConfigs(dbUpdates);
+
+    // App ID 或 App Secret 变了，旧 OAuth token 自动失效
+    if (credentialsChanged) {
+      await this.tokenService.revokeTokens();
+      return {
+        message: '配置已保存并立即生效。检测到应用凭证变更，OAuth 授权已自动清除，请重新完成授权。',
+      };
+    }
+
+    return { message: '配置已保存并立即生效' };
   }
 }
