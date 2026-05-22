@@ -4,7 +4,8 @@ docker-compose.override.yml
 
 # 备份文件
 backups/
-*.sql
+backup*.sql
+dump*.sql
 *.rdb
 *.tar.gz
 
