@@ -18,9 +18,9 @@ async function bootstrap() {
   // 全局验证管道
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
+      whitelist: true,              // 自动过滤非白名单字段
+      transform: true,              // 自动类型转换
+      forbidNonWhitelisted: false,  // 允许前端多传参数（忽略而不报错）
       transformOptions: {
         enableImplicitConversion: true,
       },

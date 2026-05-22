@@ -72,15 +72,9 @@ const Dashboard: React.FC = observer(() => {
     },
   ];
 
-  // 模拟图表数据
-  const chartData = [
-    { month: '1月', count: 12 },
-    { month: '2月', count: 18 },
-    { month: '3月', count: 25 },
-    { month: '4月', count: 30 },
-    { month: '5月', count: 28 },
-    { month: '6月', count: 35 },
-  ];
+  // TODO: 对接后端月度统计接口
+  // 暂时隐藏图表，等待后端提供统计数据
+  const chartData: any[] = [];
 
   const chartConfig = {
     data: chartData,
@@ -155,10 +149,12 @@ const Dashboard: React.FC = observer(() => {
         </Col>
       </Row>
 
-      {/* 任务趋势图 */}
-      <Card title="任务趋势">
-        <Column {...chartConfig} />
-      </Card>
+      {/* 任务趋势图 - 暂时隐藏，等待后端统计接口 */}
+      {chartData.length > 0 && (
+        <Card title="任务趋势">
+          <Column {...chartConfig} />
+        </Card>
+      )}
 
       {/* 最近任务 */}
       <Card title="最近任务">

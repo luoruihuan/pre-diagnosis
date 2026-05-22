@@ -30,6 +30,7 @@ export class MaterialService {
   async findAll(
     paginationDto: PaginationDto,
     advertiserId?: string,
+    status?: string,
   ): Promise<PaginatedResponse<Material>> {
     const { page, pageSize } = paginationDto;
     const skip = (page - 1) * pageSize;
@@ -37,7 +38,11 @@ export class MaterialService {
     const queryBuilder = this.materialRepository.createQueryBuilder('material');
 
     if (advertiserId) {
-      queryBuilder.where('material.advertiserId = :advertiserId', { advertiserId });
+      queryBuilder.andWhere('material.advertiserId = :advertiserId', { advertiserId });
+    }
+
+    if (status) {
+      queryBuilder.andWhere('material.status = :status', { status });
     }
 
     const [items, total] = await queryBuilder

@@ -235,4 +235,16 @@ export class DiagnosisTaskService {
       }
     }
   }
+
+  async remove(id: string): Promise<void> {
+    const task = await this.findOne(id);
+
+    // 只允许删除已完成、失败或超时的任务
+    if (task.status === DiagnosisStatus.PROCESSING || task.status === DiagnosisStatus.PENDING) {
+      throw new BadRequestException('无法删除进行中或待处理的任务');
+    }
+
+    await this.taskRepository.remove(task);
+    this.logger.log(`删除诊断任务: ${id}`);
+  }
 }

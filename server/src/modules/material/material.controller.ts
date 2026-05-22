@@ -32,8 +32,9 @@ export class MaterialController {
   findAll(
     @Query() paginationDto: PaginationDto,
     @Query('advertiserId') advertiserId?: string,
+    @Query('status') status?: string,
   ) {
-    return this.materialService.findAll(paginationDto, advertiserId);
+    return this.materialService.findAll(paginationDto, advertiserId, status);
   }
 
   @Get(':id')
