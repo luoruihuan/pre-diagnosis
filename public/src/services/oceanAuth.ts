@@ -2,7 +2,9 @@ import request from '../utils/request';
 
 export interface OceanAuthStatus {
   isAuthorized: boolean;
-  expiresAt?: number; // Unix 时间戳（秒）
+  authorized: boolean;
+  expiresAt?: number | null;   // Unix 时间戳（秒）
+  remainSeconds?: number | null;
   advertiserIds?: number[];
 }
 

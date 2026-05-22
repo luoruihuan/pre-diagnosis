@@ -21,7 +21,7 @@ const Login: React.FC = () => {
     setErrorMsg(null);
     try {
       await authStore.login(values.username, values.password);
-      navigate('/new-material', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : '登录失败，请检查用户名和密码';

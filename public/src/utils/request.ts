@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
-import { message } from 'antd';
+import { message, Modal } from 'antd';
 
 // 创建 axios 实例
 const request: AxiosInstance = axios.create({
@@ -47,11 +47,33 @@ request.interceptors.response.use(
       const { status, data } = error.response;
 
       switch (status) {
-        case 401:
-          message.error('登录已过期，请重新登录');
-          localStorage.removeItem('access_token');
-          window.location.href = '/login';
+        case 401: {
+          const errorData = error.response?.data;
+          const errorType = errorData?.data?.type || errorData?.type;
+
+          if (
+            errorType === 'OCEAN_ENGINE_UNAUTHORIZED' ||
+            errorType === 'OCEAN_ENGINE_TOKEN_EXPIRED'
+          ) {
+            Modal.confirm({
+              title: '巨量引擎授权',
+              content:
+                errorType === 'OCEAN_ENGINE_UNAUTHORIZED'
+                  ? '当前功能需要先完成巨量引擎 OAuth 授权，是否立即前往授权？'
+                  : '巨量引擎授权已过期，需要重新授权，是否立即前往？',
+              okText: '立即授权',
+              cancelText: '稍后再说',
+              onOk: () => {
+                window.location.href = '/api/auth/ocean-engine/authorize';
+              },
+            });
+          } else {
+            message.error('登录已过期，请重新登录');
+            localStorage.removeItem('access_token');
+            window.location.href = '/login';
+          }
           break;
+        }
         case 403:
           message.error('拒绝访问');
           break;

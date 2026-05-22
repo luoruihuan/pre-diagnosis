@@ -66,4 +66,33 @@ export class AdvertiserAccountService {
     const account = await this.findOne(id);
     await this.accountRepository.remove(account);
   }
+
+  async findOptions(): Promise<{
+    agentOptions: Array<{ label: string; value: number }>;
+    advertiserOptions: Array<{ label: string; value: number; agentId: number }>;
+  }> {
+    const accounts = await this.accountRepository.find({
+      where: { isActive: true },
+      order: { agentId: 'ASC', advertiserId: 'ASC' },
+    });
+
+    // bigint 在 TypeORM 中序列化为字符串，强制转为 number
+    const agentMap = new Map<number, string>();
+    accounts.forEach(a => {
+      const agentId = Number(a.agentId);
+      if (!agentMap.has(agentId)) {
+        agentMap.set(agentId, a.name ? `${agentId} (${a.name})` : String(agentId));
+      }
+    });
+
+    const agentOptions = Array.from(agentMap.entries()).map(([value, label]) => ({ label, value }));
+
+    const advertiserOptions = accounts.map(a => ({
+      label: a.name ? `${Number(a.advertiserId)} (${a.name})` : String(Number(a.advertiserId)),
+      value: Number(a.advertiserId),
+      agentId: Number(a.agentId),
+    }));
+
+    return { agentOptions, advertiserOptions };
+  }
 }

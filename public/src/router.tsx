@@ -9,13 +9,11 @@ import MaterialList from './pages/Material/List';
 import DiagnosisCreate from './pages/Diagnosis/Create';
 import DiagnosisList from './pages/Diagnosis/List';
 import DiagnosisDetail from './pages/Diagnosis/Detail';
-import ConfigTemplates from './pages/Config/Templates';
 import NewMaterialCreate from './pages/NewMaterial/Create';
 import NewMaterialList from './pages/NewMaterial/List';
 import Placeholder from './pages/Placeholder';
 import Statistics from './pages/Statistics';
 import Advertisers from './pages/Base/Advertisers';
-import BaseConfigs from './pages/Base/Configs';
 import SystemConfig from './pages/Base/System';
 
 const router = createBrowserRouter([
@@ -37,7 +35,12 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/new-material" replace />,
+        element: <Navigate to="/dashboard" replace />,
+      },
+      // ── 首页 ────────────────────────────────────────────
+      {
+        path: 'dashboard',
+        element: <Dashboard />,
       },
       // ── 新素材检测 ──────────────────────────────────────
       {
@@ -85,19 +88,10 @@ const router = createBrowserRouter([
             element: <Advertisers />,
           },
           {
-            path: 'configs',
-            element: <BaseConfigs />,
-          },
-          {
             path: 'system',
             element: <SystemConfig />,
           },
         ],
-      },
-      // ── Dashboard（保留）────────────────────────────────
-      {
-        path: 'dashboard',
-        element: <Dashboard />,
       },
       // ── 旧路由（保留兼容，侧边栏不显示）────────────────
       {
@@ -135,19 +129,6 @@ const router = createBrowserRouter([
           {
             path: 'detail/:id',
             element: <DiagnosisDetail />,
-          },
-        ],
-      },
-      {
-        path: 'config',
-        children: [
-          {
-            index: true,
-            element: <Navigate to="/config/templates" replace />,
-          },
-          {
-            path: 'templates',
-            element: <ConfigTemplates />,
           },
         ],
       },

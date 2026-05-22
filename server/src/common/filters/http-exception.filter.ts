@@ -22,30 +22,43 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let code = 50000;
     let message = '系统错误';
 
+    let extraData: Record<string, unknown> | undefined;
+
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
 
-      if (typeof exceptionResponse === 'object' && 'message' in exceptionResponse) {
-        const msg = (exceptionResponse as any).message;
-        message = Array.isArray(msg)
-          ? msg.join(', ')
-          : String(msg);
+      if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
+        const resp = exceptionResponse as Record<string, unknown>;
+        const msg = resp['message'];
+        message = Array.isArray(msg) ? msg.join(', ') : String(msg ?? exception.message);
+
+        // 透传自定义 type 字段（用于前端区分错误类型）
+        if (resp['type']) {
+          extraData = { type: resp['type'] };
+        }
+
+        // 优先使用结构体里的自定义 code
+        if (typeof resp['code'] === 'number') {
+          code = resp['code'] as number;
+        }
       } else {
         message = exception.message;
       }
 
-      // 根据 HTTP 状态码映射业务错误码
-      if (status === HttpStatus.BAD_REQUEST) {
-        code = 40001;
-      } else if (status === HttpStatus.UNAUTHORIZED) {
-        code = 40101;
-      } else if (status === HttpStatus.FORBIDDEN) {
-        code = 40301;
-      } else if (status === HttpStatus.NOT_FOUND) {
-        code = 40401;
-      } else if (status === HttpStatus.TOO_MANY_REQUESTS) {
-        code = 40029;
+      // 根据 HTTP 状态码映射业务错误码（仅在未设置自定义 code 时生效）
+      if (code === 50000) {
+        if (status === HttpStatus.BAD_REQUEST) {
+          code = 40001;
+        } else if (status === HttpStatus.UNAUTHORIZED) {
+          code = 40101;
+        } else if (status === HttpStatus.FORBIDDEN) {
+          code = 40301;
+        } else if (status === HttpStatus.NOT_FOUND) {
+          code = 40401;
+        } else if (status === HttpStatus.TOO_MANY_REQUESTS) {
+          code = 40029;
+        }
       }
     } else if (exception instanceof Error) {
       message = exception.message;
@@ -59,6 +72,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
       `${request.method} ${request.url} - ${status} - ${message}`,
     );
 
-    response.status(status).json(ApiResponse.error(code, message));
+    const body = ApiResponse.error(code, message);
+    if (extraData) {
+      (body as any).data = extraData;
+    }
+    response.status(status).json(body);
   }
 }

@@ -1,17 +1,25 @@
 import React from 'react';
-import { Layout, Menu, Typography, theme } from 'antd';
+import { Layout, Menu, Typography, theme, Dropdown, Button } from 'antd';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
+  HomeOutlined,
   ExperimentOutlined,
   InboxOutlined,
   BarChartOutlined,
   SettingOutlined,
+  UserOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons';
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
 
 const menuItems = [
+  {
+    key: '/dashboard',
+    icon: <HomeOutlined />,
+    label: '首页',
+  },
   {
     key: '/new-material',
     icon: <ExperimentOutlined />,
@@ -40,7 +48,6 @@ const menuItems = [
     label: '基础数据',
     children: [
       { key: '/base/advertisers', label: '广告主账号' },
-      { key: '/base/configs', label: '诊断配置模板' },
       { key: '/base/system', label: '系统配置' },
     ],
   },
@@ -53,6 +60,7 @@ const MainLayout: React.FC = () => {
 
   const getSelectedKeys = () => {
     const path = location.pathname;
+    if (path === '/dashboard') return ['/dashboard'];
     if (path === '/new-material') return ['/new-material'];
     for (const item of menuItems) {
       if (item.children) {
@@ -130,6 +138,34 @@ const MainLayout: React.FC = () => {
             lineHeight: '62px',
           }}
         />
+
+        {/* 右上角用户信息 + 退出登录 */}
+        <div style={{ marginLeft: 'auto', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'logout',
+                  icon: <LogoutOutlined />,
+                  label: '退出登录',
+                  danger: true,
+                },
+              ],
+              onClick: ({ key }) => {
+                if (key === 'logout') {
+                  // 只清除 JWT token，不清除巨量 OAuth（Redis 里的）
+                  localStorage.removeItem('access_token');
+                  window.location.href = '/login';
+                }
+              },
+            }}
+            placement="bottomRight"
+          >
+            <Button type="text" icon={<UserOutlined />} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              admin
+            </Button>
+          </Dropdown>
+        </div>
       </Header>
 
       <Content

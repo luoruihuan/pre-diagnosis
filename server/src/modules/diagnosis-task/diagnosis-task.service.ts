@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  UnauthorizedException,
   HttpException,
   HttpStatus,
   Logger,
@@ -79,6 +80,10 @@ export class DiagnosisTaskService {
       }
     } catch (error) {
       this.logger.error(`创建诊断任务失败: ${error.message}`, error.stack);
+      // UnauthorizedException（巨量未授权/token过期）直接透传，保留 type 信息供前端识别
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
       throw new BadRequestException(`创建诊断任务失败: ${error.message}`);
     }
 

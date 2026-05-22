@@ -83,3 +83,22 @@ export const updateSystemConfig = async (
 ): Promise<{ message: string }> => {
   return request.put('/system-config', params);
 };
+
+export interface AdvertiserOption {
+  label: string;
+  value: number;
+  agentId: number;
+}
+
+export interface AgentOption {
+  label: string;
+  value: number;
+}
+
+export interface AdvertiserOptions {
+  agentOptions: AgentOption[];
+  advertiserOptions: AdvertiserOption[];
+}
+
+export const getAdvertiserOptions = async (): Promise<AdvertiserOptions> =>
+  request.get('/advertiser-accounts/options');

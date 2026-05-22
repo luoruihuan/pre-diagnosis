@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Form,
@@ -10,6 +10,8 @@ import {
   Upload,
   message,
   Progress,
+  Select,
+  Alert,
 } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import type { UploadFile, UploadChangeParam } from 'antd/es/upload';
@@ -18,6 +20,10 @@ import { useNavigate } from 'react-router-dom';
 import diagnosisStore from '../../stores/diagnosisStore';
 import { uploadVideoToOcean } from '../../services/material';
 import type { NewMaterialCreateParams } from '../../types/diagnosis';
+import {
+  getAdvertiserOptions,
+} from '../../services/advertiser';
+import type { AdvertiserOption, AgentOption } from '../../services/advertiser';
 
 type RefAdType = 'refAdId' | 'refPromotionId';
 type VideoSource = 'upload' | 'manual';
@@ -34,6 +40,33 @@ const NewMaterialCreate: React.FC = observer(() => {
   const [uploadFileName, setUploadFileName] = useState<string>('');
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploading, setUploading] = useState<boolean>(false);
+
+  const [agentOptions, setAgentOptions] = useState<AgentOption[]>([]);
+  const [advertiserOptions, setAdvertiserOptions] = useState<AdvertiserOption[]>([]);
+  const [optionsLoading, setOptionsLoading] = useState(false);
+  const [noAccountsConfigured, setNoAccountsConfigured] = useState(false);
+
+  useEffect(() => {
+    setOptionsLoading(true);
+    getAdvertiserOptions()
+      .then(data => {
+        setAgentOptions(data.agentOptions);
+        setAdvertiserOptions(data.advertiserOptions);
+        if (data.advertiserOptions.length === 0) {
+          setNoAccountsConfigured(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setOptionsLoading(false));
+  }, []);
+
+  // 选择广告主时自动联动填充代理商
+  const handleAdvertiserChange = (value: number) => {
+    const option = advertiserOptions.find(o => o.value === value);
+    if (option) {
+      form.setFieldValue('agentId', option.agentId);
+    }
+  };
 
   // 本地上传模式提交
   const handleUploadSubmit = async (values: {
@@ -146,6 +179,67 @@ const NewMaterialCreate: React.FC = observer(() => {
 
   const isUploadMode = videoSource === 'upload';
 
+  // 广告主/代理商选择字段（两种模式共用）
+  const renderAccountFields = () => (
+    <>
+      {noAccountsConfigured && (
+        <Alert
+          type="info"
+          showIcon
+          message="尚未配置广告主账号"
+          description={
+            <span>
+              请先在
+              <Button type="link" size="small" onClick={() => navigate('/base/advertisers')}>
+                基础数据 → 广告主账号
+              </Button>
+              中添加账号，再发起前测。
+            </span>
+          }
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      <Form.Item
+        label="广告主"
+        name="advertiserId"
+        rules={[{ required: true, message: '请选择广告主' }]}
+      >
+        <Select
+          placeholder="请选择广告主"
+          loading={optionsLoading}
+          options={advertiserOptions}
+          showSearch
+          filterOption={(input, option) =>
+            String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+          }
+          onChange={handleAdvertiserChange}
+          notFoundContent={
+            <span>
+              暂无数据，请先
+              <Button type="link" size="small" onClick={() => navigate('/base/advertisers')}>
+                配置广告主账号
+              </Button>
+            </span>
+          }
+        />
+      </Form.Item>
+
+      <Form.Item
+        label="代理商"
+        name="agentId"
+        rules={[{ required: true, message: '请先选择广告主' }]}
+      >
+        <Select
+          placeholder="选择广告主后自动填充"
+          loading={optionsLoading}
+          options={agentOptions}
+          disabled
+        />
+      </Form.Item>
+    </>
+  );
+
   return (
     <Card title="发起前测">
       {/* 视频来源切换 */}
@@ -195,31 +289,7 @@ const NewMaterialCreate: React.FC = observer(() => {
               )}
             </Form.Item>
 
-            <Form.Item
-              label="广告主ID"
-              name="advertiserId"
-              rules={[{ required: true, message: '请输入广告主ID' }]}
-            >
-              <InputNumber
-                style={{ width: '100%' }}
-                placeholder="请输入广告主ID"
-                min={1}
-                precision={0}
-              />
-            </Form.Item>
-
-            <Form.Item
-              label="代理商ID"
-              name="agentId"
-              rules={[{ required: true, message: '请输入代理商ID' }]}
-            >
-              <InputNumber
-                style={{ width: '100%' }}
-                placeholder="请输入代理商ID"
-                min={1}
-                precision={0}
-              />
-            </Form.Item>
+            {renderAccountFields()}
 
             <Form.Item label="素材标题" name="title">
               <Input placeholder="请输入素材标题（选填）" />
@@ -261,7 +331,7 @@ const NewMaterialCreate: React.FC = observer(() => {
               <Space>
                 <Button
                   type="primary"
-           htmlType="submit"
+                  htmlType="submit"
                   loading={uploading || diagnosisStore.loading}
                   disabled={!uploadFile}
                 >
@@ -276,31 +346,7 @@ const NewMaterialCreate: React.FC = observer(() => {
         {/* ===== 手动输入模式（原有表单）===== */}
         {!isUploadMode && (
           <>
-            <Form.Item
-              label="广告主ID"
-              name="advertiserId"
-              rules={[{ required: true, message: '请输入广告主ID' }]}
-            >
-              <InputNumber
-                style={{ width: '100%' }}
-                placeholder="请输入广告主ID"
-                min={1}
-                precision={0}
-              />
-            </Form.Item>
-
-            <Form.Item
-              label="代理商ID"
-              name="agentId"
-              rules={[{ required: true, message: '请输入代理商ID' }]}
-            >
-              <InputNumber
-                style={{ width: '100%' }}
-                placeholder="请输入代理商ID"
-                min={1}
-                precision={0}
-              />
-            </Form.Item>
+            {renderAccountFields()}
 
             <Form.Item
               label="视频ID"
@@ -332,7 +378,7 @@ const NewMaterialCreate: React.FC = observer(() => {
                   <Form.Item name="refAdId" noStyle>
                     <InputNumber
                       style={{ width: '100%' }}
-          placeholder="请输入1.0广告ID"
+                      placeholder="请输入1.0广告ID"
                       min={1}
                       precision={0}
                     />

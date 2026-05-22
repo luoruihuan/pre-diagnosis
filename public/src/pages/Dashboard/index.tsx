@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { Card, Row, Col, Statistic, Table, Space, Button, Tag, Badge } from 'antd';
+import React, { useEffect, useRef, useState } from 'react';
+import { Card, Row, Col, Statistic, Table, Space, Button, Tag, Badge, Alert } from 'antd';
 import {
   ExperimentOutlined,
   CheckCircleOutlined,
@@ -12,6 +12,7 @@ import diagnosisStore from '../../stores/diagnosisStore';
 import ResultTag from '../../components/ResultTag';
 import type { DiagnosisTask } from '../../types/diagnosis';
 import dayjs from 'dayjs';
+import { getOceanAuthStatus, type OceanAuthStatus } from '../../services/oceanAuth';
 
 // 任务状态 Badge 配置
 const STATUS_CONFIG: Record<
@@ -28,6 +29,7 @@ const STATUS_CONFIG: Record<
 
 const Dashboard: React.FC = observer(() => {
   const pollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [authStatus, setAuthStatus] = useState<OceanAuthStatus | null>(null);
 
   const loadData = () => {
     diagnosisStore.fetchTasks({ page: 1, pageSize: 20 });
@@ -35,6 +37,10 @@ const Dashboard: React.FC = observer(() => {
 
   useEffect(() => {
     loadData();
+    // 页面加载时检查巨量引擎授权状态
+    getOceanAuthStatus()
+      .then((status) => setAuthStatus(status))
+      .catch(() => {});
   }, []);
 
   // 自动5s轮询 PENDING/RUNNING 任务
@@ -143,6 +149,46 @@ const Dashboard: React.FC = observer(() => {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      {/* 巨量引擎授权状态提示 */}
+      {authStatus && !authStatus.authorized && (
+        <Alert
+          type="warning"
+          showIcon
+          message="巨量引擎尚未授权"
+          description={
+            <span>
+              当前系统尚未完成巨量引擎 OAuth 授权，新素材检测和已有素材检测功能无法使用。
+              <Button
+                type="link"
+                size="small"
+                onClick={() => { window.location.href = '/api/auth/ocean-engine/authorize'; }}
+              >
+                立即授权
+              </Button>
+            </span>
+          }
+          style={{ marginBottom: 0 }}
+        />
+      )}
+      {authStatus?.authorized &&
+        authStatus.remainSeconds != null &&
+        authStatus.remainSeconds < 7200 && (
+          <Alert
+            type="warning"
+            showIcon
+            message="巨量引擎授权即将过期"
+            description={`授权将在 ${Math.floor(authStatus.remainSeconds / 60)} 分钟后过期，建议提前重新授权。`}
+            action={
+              <Button
+                size="small"
+                onClick={() => { window.location.href = '/api/auth/ocean-engine/authorize'; }}
+              >
+                重新授权
+              </Button>
+            }
+            style={{ marginBottom: 0 }}
+          />
+        )}
       {/* 统计卡片 */}
       <Row gutter={16}>
         <Col span={6}>

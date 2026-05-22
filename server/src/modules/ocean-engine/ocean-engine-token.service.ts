@@ -144,9 +144,11 @@ export class OceanEngineTokenService {
   async refreshAccessToken(): Promise<string> {
     const refreshToken = await this.redis.get(this.KEY_REFRESH_TOKEN);
     if (!refreshToken) {
-      throw new UnauthorizedException(
-        '未找到 refresh_token，请重新完成 OAuth 授权',
-      );
+      throw new UnauthorizedException({
+        code: 40103,
+        message: '巨量引擎授权已过期，请重新完成 OAuth 授权',
+        type: 'OCEAN_ENGINE_TOKEN_EXPIRED',
+      });
     }
 
     this.logger.log('refreshAccessToken: 开始刷新 access_token');
@@ -183,9 +185,11 @@ export class OceanEngineTokenService {
   async getValidAccessToken(): Promise<string> {
     const expiresAtStr = await this.redis.get(this.KEY_EXPIRES_AT);
     if (!expiresAtStr) {
-      throw new UnauthorizedException(
-        '巨量引擎尚未完成 OAuth 授权，请先访问 /api/auth/ocean-engine/authorize',
-      );
+      throw new UnauthorizedException({
+        code: 40102,
+        message: '巨量引擎尚未完成 OAuth 授权，请先完成授权',
+        type: 'OCEAN_ENGINE_UNAUTHORIZED',
+      });
     }
 
     const expiresAt = parseInt(expiresAtStr, 10);
@@ -202,9 +206,11 @@ export class OceanEngineTokenService {
 
     const token = await this.redis.get(this.KEY_ACCESS_TOKEN);
     if (!token) {
-      throw new UnauthorizedException(
-        '巨量引擎 access_token 不存在，请重新完成 OAuth 授权',
-      );
+      throw new UnauthorizedException({
+        code: 40102,
+        message: '巨量引擎尚未完成 OAuth 授权，请先完成授权',
+        type: 'OCEAN_ENGINE_UNAUTHORIZED',
+      });
     }
 
     return token;

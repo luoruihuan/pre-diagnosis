@@ -36,6 +36,12 @@ export class AdvertiserAccountController {
     return this.accountService.findAll(paginationDto, isActive);
   }
 
+  @Get('options')
+  @ApiOperation({ summary: '获取广告主账号下拉选项（key-value格式）' })
+  getOptions() {
+    return this.accountService.findOptions();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: '获取广告主账号详情' })
   @SwaggerResponse({ status: 200, description: '获取成功' })
