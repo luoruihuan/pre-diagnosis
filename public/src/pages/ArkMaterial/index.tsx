@@ -15,7 +15,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
 import { getArkVideoList } from '../../services/material';
 import { getAdvertiserOptions } from '../../services/advertiser';
-import type { AdvertiserOption, AgentOption } from '../../services/advertiser';
+import type { AdvertiserOption } from '../../services/advertiser';
 import type { ArkVideo } from '../../types/material';
 
 const { Text } = Typography;
@@ -25,7 +25,6 @@ const ArkMaterial: React.FC = () => {
 
   // 广告主/代理商选项
   const [advertiserOptions, setAdvertiserOptions] = useState<AdvertiserOption[]>([]);
-  const [agentOptions, setAgentOptions] = useState<AgentOption[]>([]);
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [noAccountsConfigured, setNoAccountsConfigured] = useState(false);
 
@@ -47,7 +46,6 @@ const ArkMaterial: React.FC = () => {
     getAdvertiserOptions()
       .then(data => {
         setAdvertiserOptions(data.advertiserOptions);
-        setAgentOptions(data.agentOptions);
         if (data.advertiserOptions.length === 0) {
           setNoAccountsConfigured(true);
         }
