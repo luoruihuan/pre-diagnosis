@@ -92,7 +92,7 @@ export class OceanEngineTokenService {
     const response = await axios.post<TokenResponse>(
       `${this.OAUTH_BASE}/open_api/oauth2/access_token/`,
       {
-        app_id: this.appId,
+        appid: this.appId,
         secret: this.appSecret,
         grant_type: 'auth_code',
         auth_code: authCode,
@@ -139,7 +139,7 @@ export class OceanEngineTokenService {
     const response = await axios.post<TokenResponse>(
       `${this.OAUTH_BASE}/open_api/oauth2/refresh_token/`,
       {
-        app_id: this.appId,
+        appid: this.appId,
         secret: this.appSecret,
         grant_type: 'refresh_token',
         refresh_token: refreshToken,

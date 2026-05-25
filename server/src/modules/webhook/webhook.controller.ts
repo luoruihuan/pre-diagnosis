@@ -1,8 +1,10 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   Headers,
+  Query,
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
@@ -18,25 +20,38 @@ export class WebhookController {
 
   constructor(private readonly webhookService: WebhookService) {}
 
-  @Public() // Webhook 接口标记为公开，不需要 API Key
+  @Public()
+  @Get('ocean-engine')
+  @ApiOperation({ summary: '巨量引擎 SPI 回调地址 Challenge 验证' })
+  verifyWebhook(
+    @Query('challenge') challenge: number,
+    @Query('event') event: string,
+  ) {
+    this.logger.log(`收到 Challenge 验证: event=${event}, challenge=${challenge}`);
+    // 按官方规范原样回传 challenge，Content-Type: application/json
+    return {
+      BaseResp: { StatusCode: 200, StatusMessage: 'ok' },
+      challenge,
+    };
+  }
+
+  @Public()
   @Post('ocean-engine')
   @ApiOperation({ summary: '接收巨量引擎 Webhook 回调' })
   @SwaggerResponse({ status: 200, description: '处理成功' })
   async handleWebhook(
-    @Headers('x-timestamp') timestamp: string,
-    @Headers('x-signature') signature: string,
+    @Headers('x-open-signature') signature: string,
     @Headers('x-request-id') requestId: string,
     @Body() body: WebhookDto,
   ) {
     this.logger.log(`收到 Webhook: event=${body.event}, requestId=${requestId}`);
 
-    // 验证签名（防时序攻击 + 防重放攻击）
+    // 验证签名：HMAC-SHA256(rawBody, secretKey)，对比 X-Open-Signature 头
     const bodyString = JSON.stringify(body);
     const isValid = await this.webhookService.verifySignature(
-      timestamp,
       bodyString,
       signature,
-      requestId || `${Date.now()}-${Math.random()}`, // 如果没有 requestId，生成一个
+      requestId || `${Date.now()}-${Math.random()}`,
     );
 
     if (!isValid) {

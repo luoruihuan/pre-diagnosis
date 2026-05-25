@@ -19,26 +19,15 @@ export class WebhookService {
   ) {}
 
   /**
-   * 验证 Webhook 签名（防时序攻击 + 防重放攻击）
-   * 签名算法：HMAC-SHA256(timestamp + "." + body, webhookSecret)
+   * 验证 Webhook 签名
+   * 官方算法：HMAC-SHA256(body, secret_key)，对比请求头 X-Open-Signature
    */
   async verifySignature(
-    timestamp: string,
     body: string,
     signature: string,
     requestId: string,
   ): Promise<boolean> {
-    // 1. 验证时间戳（5分钟内有效）
-    const requestTime = parseInt(timestamp, 10);
-    const now = Date.now();
-    const timeDiff = Math.abs(now - requestTime);
-
-    if (timeDiff > 300000) {
-      this.logger.warn(`时间戳过期: ${timestamp}, 时间差: ${timeDiff}ms`);
-      return false;
-    }
-
-    // 2. 检查请求是否已处理（防重放攻击）
+    // 1. 检查请求是否已处理（防重放攻击）
     const dedupeKey = `webhook:processed:${requestId}`;
     const exists = await this.redis.exists(dedupeKey);
 
@@ -47,10 +36,10 @@ export class WebhookService {
       return false;
     }
 
-    // 3. 验证签名（文档要求：HMAC-SHA256(timestamp + "." + body, secret)）
+    // 2. 验证签名：HMAC-SHA256(body, secret_key)
     const expectedSignature = crypto
       .createHmac('sha256', this.oceanConfig.webhookSecret)
-      .update(timestamp + '.' + body)
+      .update(body)
       .digest('hex');
 
     try {
@@ -59,7 +48,7 @@ export class WebhookService {
         Buffer.from(signature, 'hex'),
       );
 
-      // 4. 签名验证通过后，标记请求已处理（10分钟过期）
+      // 3. 签名验证通过后，标记请求已处理（10分钟过期）
       if (isValid) {
         await this.redis.setex(dedupeKey, 600, '1');
       }
