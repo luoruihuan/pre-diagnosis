@@ -83,7 +83,7 @@ const OceanAuthCard: React.FC = () => {
     });
   };
 
-  const isAuthorized = authStatus?.isAuthorized ?? false;
+  const isAuthorized = authStatus?.authorized ?? false;
   const expiringSoon =
     isAuthorized && authStatus?.expiresAt ? isExpiringSoon(authStatus.expiresAt) : false;
 

@@ -5,10 +5,12 @@ import {
   Body,
   Headers,
   Query,
+  Res,
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse as SwaggerResponse } from '@nestjs/swagger';
+import { Response } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
 import { WebhookService } from './webhook.service';
 import { WebhookDto } from './dto/webhook.dto';
@@ -26,13 +28,14 @@ export class WebhookController {
   verifyWebhook(
     @Query('challenge') challenge: number,
     @Query('event') event: string,
-  ) {
+    @Res() res: Response,
+  ): void {
     this.logger.log(`收到 Challenge 验证: event=${event}, challenge=${challenge}`);
-    // 按官方规范原样回传 challenge，Content-Type: application/json
-    return {
+    // 直接写响应，绕过全局 TransformInterceptor 的包装
+    res.status(200).json({
       BaseResp: { StatusCode: 200, StatusMessage: 'ok' },
       challenge,
-    };
+    });
   }
 
   @Public()
