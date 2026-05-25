@@ -42,7 +42,9 @@ export class MaterialController {
     },
   })
   @SwaggerResponse({ status: 201, description: '上传成功，返回 videoId/materialId/videoUrl' })
-  @UseInterceptors(FileInterceptor('video'))
+  @UseInterceptors(FileInterceptor('video', {
+    limits: { fileSize: 200 * 1024 * 1024 }, // 200MB
+  }))
   async uploadVideo(
     @UploadedFile() file: Express.Multer.File,
     @Body('agentId') agentIdStr: string,

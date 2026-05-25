@@ -28,6 +28,7 @@ export const uploadVideoToOcean = async (params: {
 
   return request.post('/materials/upload-video', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 300000, // 5 分钟，覆盖全局 30s
   });
 };
 

@@ -1,28 +1,56 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsObject, IsOptional, IsNumber } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray } from 'class-validator';
 
 /**
- * 巨量引擎 Webhook 回调 Body 格式（文档定义）：
+ * 巨量引擎 SPI 订阅推送 Body 格式（官方文档）：
  * {
- *   "advertiser_id": 123,
- *   "event": "SUCCESS",
- *   "data": { "video_id": "...", "agent_id": 123, "task_id": 456, "status": "SUCCESS" }
+ *   "message_id": "xxx",
+ *   "subscribe_task_id": 123,
+ *   "advertiser_ids": [123],
+ *   "service_label": "status.material.diagnose.agentad",
+ *   "publish_time": 1234567890,
+ *   "timestamp": 1234567890,
+ *   "nonce": 123,
+ *   "data": "{...}"   // JSON 字符串
  * }
- * timestamp / signature / request-id 在 Header 中，不在 Body 里
  */
 export class WebhookDto {
-  @ApiProperty({ description: '广告主ID', required: false })
+  @ApiProperty({ description: '消息唯一ID', required: false })
+  @IsString()
+  @IsOptional()
+  message_id?: string;
+
+  @ApiProperty({ description: '订阅任务ID', required: false })
   @IsNumber()
   @IsOptional()
-  advertiser_id?: number;
+  subscribe_task_id?: number;
 
-  @ApiProperty({ description: '事件类型，如 status.material.diagnose.agentad' })
+  @ApiProperty({ description: '广告主账号列表', required: false })
+  @IsArray()
+  @IsOptional()
+  advertiser_ids?: number[];
+
+  @ApiProperty({ description: '订阅服务类型，如 status.material.diagnose.agentad', required: false })
   @IsString()
-  @IsNotEmpty()
-  event: string;
+  @IsOptional()
+  service_label?: string;
 
-  @ApiProperty({ description: '事件数据' })
-  @IsObject()
-  @IsNotEmpty()
-  data: Record<string, any>;
+  @ApiProperty({ description: '消息产生时间（毫秒时间戳）', required: false })
+  @IsNumber()
+  @IsOptional()
+  publish_time?: number;
+
+  @ApiProperty({ description: '推送时间（毫秒时间戳）', required: false })
+  @IsNumber()
+  @IsOptional()
+  timestamp?: number;
+
+  @ApiProperty({ description: '随机数，防重放', required: false })
+  @IsNumber()
+  @IsOptional()
+  nonce?: number;
+
+  @ApiProperty({ description: '推送数据，JSON 字符串', required: false })
+  @IsOptional()
+  data?: any;
 }

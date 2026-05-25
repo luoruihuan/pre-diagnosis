@@ -47,14 +47,14 @@ export class WebhookController {
     @Headers('x-request-id') requestId: string,
     @Body() body: WebhookDto,
   ) {
-    this.logger.log(`收到 Webhook: event=${body.event}, requestId=${requestId}`);
+    this.logger.log(`收到 Webhook: service_label=${body.service_label}, message_id=${body.message_id}`);
 
     // 验证签名：HMAC-SHA256(rawBody, secretKey)，对比 X-Open-Signature 头
     const bodyString = JSON.stringify(body);
     const isValid = await this.webhookService.verifySignature(
       bodyString,
       signature,
-      requestId || `${Date.now()}-${Math.random()}`,
+      body.message_id || `${Date.now()}-${Math.random()}`,
     );
 
     if (!isValid) {
@@ -62,13 +62,14 @@ export class WebhookController {
       throw new UnauthorizedException('签名验证失败');
     }
 
-    // 处理不同类型的事件（巨量引擎事件标识）
+    // 处理前测完成事件，service_label 对应前测类型
     if (
-      body.event === 'status.material.diagnose.agentad' ||
-      body.event === 'status.material.diagnose.agentqc' ||
-      body.event === 'diagnosis.complete' // 兼容旧格式
+      body.service_label === 'status.material.diagnose.agentad' ||
+      body.service_label === 'status.material.diagnose.agentqc'
     ) {
-      await this.webhookService.handleDiagnosisComplete(body.data as any);
+      // data 是 JSON 字符串，需要先解析
+      const data = typeof body.data === 'string' ? JSON.parse(body.data) : body.data;
+      await this.webhookService.handleDiagnosisComplete(data);
     }
 
     return { code: 0, message: 'success' };
