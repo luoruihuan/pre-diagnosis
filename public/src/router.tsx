@@ -11,7 +11,7 @@ import DiagnosisList from './pages/Diagnosis/List';
 import DiagnosisDetail from './pages/Diagnosis/Detail';
 import NewMaterialCreate from './pages/NewMaterial/Create';
 import NewMaterialList from './pages/NewMaterial/List';
-import Placeholder from './pages/Placeholder';
+import ArkMaterial from './pages/ArkMaterial';
 import Statistics from './pages/Statistics';
 import Advertisers from './pages/Base/Advertisers';
 import SystemConfig from './pages/Base/System';
@@ -66,7 +66,7 @@ const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <Placeholder />,
+            element: <ArkMaterial />,
           },
           {
             path: 'tasks',

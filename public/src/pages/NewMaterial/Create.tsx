@@ -16,7 +16,7 @@ import {
 import { InboxOutlined } from '@ant-design/icons';
 import type { UploadFile, UploadChangeParam } from 'antd/es/upload';
 import { observer } from 'mobx-react-lite';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import diagnosisStore from '../../stores/diagnosisStore';
 import { uploadVideoToOcean } from '../../services/material';
 import type { NewMaterialCreateParams } from '../../types/diagnosis';
@@ -34,6 +34,7 @@ const MAX_SIZE_MB = 1000;
 const NewMaterialCreate: React.FC = observer(() => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [refAdType, setRefAdType] = useState<RefAdType>('refAdId');
   const [videoSource, setVideoSource] = useState<VideoSource>('upload');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -55,10 +56,25 @@ const NewMaterialCreate: React.FC = observer(() => {
         if (data.advertiserOptions.length === 0) {
           setNoAccountsConfigured(true);
         }
+
+        // 从方舟素材库跳转过来时，预填参数
+        const preVideoId = searchParams.get('videoId');
+        const preVideoUrl = searchParams.get('videoUrl');
+        const preAgentId = searchParams.get('agentId');
+        const preAdvertiserId = searchParams.get('advertiserId');
+
+        if (preVideoId) {
+          setVideoSource('manual');
+          const fields: Record<string, any> = { videoId: preVideoId };
+          if (preVideoUrl) fields.videoUrl = preVideoUrl;
+          if (preAgentId) fields.agentId = Number(preAgentId);
+          if (preAdvertiserId) fields.advertiserId = Number(preAdvertiserId);
+          form.setFieldsValue(fields);
+        }
       })
       .catch(() => {})
       .finally(() => setOptionsLoading(false));
-  }, []);
+  }, [form, searchParams]);
 
   // 选择广告主时自动联动填充代理商
   const handleAdvertiserChange = (value: number) => {

@@ -68,8 +68,26 @@ export class MaterialController {
     });
   }
 
-  @Post()
-  @ApiOperation({ summary: '创建素材' })
+  @Get('ark-videos')
+  @ApiOperation({ summary: '获取巨量引擎方舟素材库列表' })
+  @SwaggerResponse({ status: 200, description: '获取成功' })
+  async getArkVideos(
+    @Query('agentId') agentIdStr: string,
+    @Query('page') pageStr?: string,
+    @Query('pageSize') pageSizeStr?: string,
+  ) {
+    const agentId = Number(agentIdStr);
+    if (!agentId || isNaN(agentId)) {
+      throw new BadRequestException('agentId 必须为有效数字');
+    }
+    return this.oceanEngineService.getArkVideoList({
+      agentId,
+      page: pageStr ? Number(pageStr) : 1,
+      pageSize: pageSizeStr ? Number(pageSizeStr) : 20,
+    });
+  }
+
+
   @SwaggerResponse({ status: 201, description: '创建成功' })
   create(@Body() createMaterialDto: CreateMaterialDto) {
     return this.materialService.create(createMaterialDto);

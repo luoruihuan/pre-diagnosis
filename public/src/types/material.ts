@@ -22,3 +22,24 @@ export interface MaterialListParams {
   title?: string;
   status?: string;
 }
+
+export interface ArkVideo {
+  id: string;
+  url: string;
+  signature: string;
+  source: string;
+  createTime: string;
+  filename: string;
+}
+
+export interface ArkVideoPageInfo {
+  page: number;
+  pageSize: number;
+  totalPage: number;
+  totalNumber: number;
+}
+
+export interface ArkVideoListResult {
+  list: ArkVideo[];
+  pageInfo: ArkVideoPageInfo;
+}

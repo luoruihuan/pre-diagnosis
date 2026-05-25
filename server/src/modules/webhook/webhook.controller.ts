@@ -5,12 +5,13 @@ import {
   Body,
   Headers,
   Query,
+  Req,
   Res,
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse as SwaggerResponse } from '@nestjs/swagger';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
 import { WebhookService } from './webhook.service';
 import { WebhookDto } from './dto/webhook.dto';
@@ -46,13 +47,19 @@ export class WebhookController {
     @Headers('x-open-signature') signature: string,
     @Headers('x-request-id') requestId: string,
     @Body() body: WebhookDto,
+    @Req() req: Request,
   ) {
     this.logger.log(`收到 Webhook: service_label=${body.service_label}, message_id=${body.message_id}`);
 
-    // 验证签名：HMAC-SHA256(rawBody, secretKey)，对比 X-Open-Signature 头
-    const bodyString = JSON.stringify(body);
+    // 使用原始请求体字节做签名，避免 JSON 序列化导致字段顺序/空格不一致
+    const rawBody: Buffer = (req as any).rawBody;
+    if (!rawBody) {
+      this.logger.error('rawBody 未捕获，请检查 main.ts 中的 body parser 配置');
+      throw new UnauthorizedException('签名验证失败');
+    }
+
     const isValid = await this.webhookService.verifySignature(
-      bodyString,
+      rawBody,
       signature,
       body.message_id || `${Date.now()}-${Math.random()}`,
     );

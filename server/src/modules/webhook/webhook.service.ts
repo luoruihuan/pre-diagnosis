@@ -20,10 +20,11 @@ export class WebhookService {
 
   /**
    * 验证 Webhook 签名
-   * 官方算法：HMAC-SHA256(body, secret_key)，对比请求头 X-Open-Signature
+   * 官方算法：HMAC-SHA256(rawBody, secret_key)，对比请求头 X-Open-Signature
+   * 必须使用原始请求体字节，不能用 JSON.stringify 后的字符串（字段顺序/空格可能不一致）
    */
   async verifySignature(
-    body: string,
+    rawBody: Buffer,
     signature: string,
     requestId: string,
   ): Promise<boolean> {
@@ -36,10 +37,10 @@ export class WebhookService {
       return false;
     }
 
-    // 2. 验证签名：HMAC-SHA256(body, secret_key)
+    // 2. 验证签名：HMAC-SHA256(rawBody, secret_key)
     const expectedSignature = crypto
       .createHmac('sha256', this.oceanConfig.webhookSecret)
-      .update(body)
+      .update(rawBody)
       .digest('hex');
 
     try {

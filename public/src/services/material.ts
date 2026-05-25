@@ -1,5 +1,5 @@
 import request from '../utils/request';
-import type { Material, MaterialListParams, MaterialUploadParams } from '../types/material';
+import type { Material, MaterialListParams, MaterialUploadParams, ArkVideoListResult } from '../types/material';
 import type { PaginationResponse } from '../types/common';
 
 // 上传素材
@@ -31,6 +31,14 @@ export const uploadVideoToOcean = async (params: {
     timeout: 300000, // 5 分钟，覆盖全局 30s
   });
 };
+
+// 获取方舟素材库列表
+export const getArkVideoList = async (params: {
+  agentId: number;
+  page?: number;
+  pageSize?: number;
+}): Promise<ArkVideoListResult> =>
+  request.get('/materials/ark-videos', { params });
 
 // 获取素材列表
 export const getMaterialList = async (
