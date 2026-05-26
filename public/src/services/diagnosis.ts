@@ -3,19 +3,18 @@ import type {
   DiagnosisTask,
   DiagnosisCreateParams,
   DiagnosisListParams,
-  DiagnosisDetailResponse,
   NewMaterialCreateParams,
 } from '../types/diagnosis';
 import type { PaginationResponse } from '../types/common';
 
-// 创建诊断任务
-export const createDiagnosisTask = async (params: DiagnosisCreateParams): Promise<DiagnosisTask> => {
-  return request.post('/diagnosis-tasks', params);
-};
-
-// 创建新素材检测任务（路径一）
+// 创建新素材检测任务
 export const createNewMaterialTask = async (params: NewMaterialCreateParams): Promise<DiagnosisTask> => {
   return request.post('/diagnosis-tasks', { ...params, source: 'NEW' });
+};
+
+// 创建诊断任务（通用）
+export const createDiagnosisTask = async (params: DiagnosisCreateParams): Promise<DiagnosisTask> => {
+  return request.post('/diagnosis-tasks', params);
 };
 
 // 获取任务列表
@@ -26,21 +25,11 @@ export const getDiagnosisTaskList = async (
 };
 
 // 获取任务详情
-export const getDiagnosisTaskDetail = async (id: number): Promise<DiagnosisDetailResponse> => {
+export const getDiagnosisTaskDetail = async (id: string): Promise<DiagnosisTask> => {
   return request.get(`/diagnosis-tasks/${id}`);
 };
 
-// 取消任务
-export const cancelDiagnosisTask = async (id: number): Promise<void> => {
-  return request.post(`/diagnosis-tasks/${id}/cancel`);
-};
-
-// 重新执行任务
-export const retryDiagnosisTask = async (id: number): Promise<DiagnosisTask> => {
-  return request.post(`/diagnosis-tasks/${id}/retry`);
-};
-
 // 删除任务
-export const deleteDiagnosisTask = async (id: number): Promise<void> => {
+export const deleteDiagnosisTask = async (id: string): Promise<void> => {
   return request.delete(`/diagnosis-tasks/${id}`);
 };

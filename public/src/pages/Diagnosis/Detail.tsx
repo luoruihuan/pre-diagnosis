@@ -1,125 +1,122 @@
 import React, { useEffect } from 'react';
-import { Card, Descriptions, Space, Button, Table, Tag, Image, Spin } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import {
+  Card,
+  Descriptions,
+  Space,
+  Button,
+  Tag,
+  Spin,
+  Alert,
+  Typography,
+} from 'antd';
+import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
 import { observer } from 'mobx-react-lite';
-import { useNavigate, useParams } from 'react-router-dom';
-import diagnosisStore from '../../stores/diagnosisStore';
-import TaskStatusBadge from '../../components/TaskStatusBadge';
-import ResultTag from '../../components/ResultTag';
-import { Radar } from '@ant-design/charts';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import dayjs from 'dayjs';
+import diagnosisStore from '../../stores/diagnosisStore';
+
+const { Text } = Typography;
+
+const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
+  PENDING:  { color: 'processing', label: '检测中' },
+  RUNNING:  { color: 'processing', label: '检测中' },
+  SUCCESS:  { color: 'success',    label: '已完成' },
+  FAILED:   { color: 'error',      label: '失败'   },
+  TIMEOUT:  { color: 'default',    label: '超时'   },
+};
+
+const QUALITY_CONFIG: Record<string, { color: string; label: string }> = {
+  YES:     { color: 'success', label: '优质' },
+  NO:      { color: 'error',   label: '非优质' },
+  UNKNOWN: { color: 'default', label: '未知' },
+};
 
 const DiagnosisDetail: React.FC = observer(() => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams<{ id: string }>();
+
+  // 根据当前路径判断返回哪个列表
+  const backPath = location.pathname.startsWith('/ark-material')
+    ? '/ark-material/tasks'
+    : '/new-material/tasks';
 
   useEffect(() => {
     if (id) {
-      diagnosisStore.fetchTaskDetail(Number(id));
+      diagnosisStore.fetchTaskDetail(id);
     }
   }, [id]);
 
-  if (diagnosisStore.loading || !diagnosisStore.currentTaskDetail) {
+  if (diagnosisStore.loading && !diagnosisStore.currentTask) {
     return (
       <Card>
-        <Spin tip="加载中..." />
+        <div style={{ textAlign: 'center', padding: 48 }}>
+          <Spin tip="加载中..." />
+        </div>
       </Card>
     );
   }
 
-  const { task, results } = diagnosisStore.currentTaskDetail;
+  const task = diagnosisStore.currentTask;
 
-  // 雷达图数据
-  const radarData = results.map((result) => ({
-    dimension: result.dimensionName,
-    score: result.score,
-  }));
+  if (!task) {
+    return (
+      <Card>
+        <Alert type="error" message="任务不存在或加载失败" />
+        <Button style={{ marginTop: 16 }} onClick={() => navigate(backPath)}>
+          返回列表
+        </Button>
+      </Card>
+    );
+  }
 
-  const radarConfig = {
-    data: radarData,
-    xField: 'dimension',
-    yField: 'score',
-    meta: {
-      score: {
-        alias: '得分',
-        min: 0,
-        max: 100,
-      },
-    },
-    xAxis: {
-      line: null,
-      tickLine: null,
-    },
-    yAxis: {
-      label: false,
-      grid: {
-        alternateColor: 'rgba(0, 0, 0, 0.04)',
-      },
-    },
-    point: {
-      size: 2,
-    },
-    area: {},
-  };
+  const statusCfg = STATUS_CONFIG[task.status] ?? { color: 'default', label: task.status };
+  const isPending = task.status === 'PENDING' || task.status === 'RUNNING';
+  const isSuccess = task.status === 'SUCCESS';
 
-  // 结果详情表格
-  const resultColumns = [
-    {
-      title: '诊断维度',
-      dataIndex: 'dimensionName',
-      key: 'dimensionName',
-    },
-    {
-      title: '得分',
-      dataIndex: 'score',
-      key: 'score',
-      render: (score: number) => <Tag color="blue">{score}</Tag>,
-    },
-    {
-      title: '等级',
-      dataIndex: 'level',
-      key: 'level',
-      render: (level: any) => <ResultTag level={level} />,
-    },
-    {
-      title: '建议',
-      dataIndex: 'suggestions',
-      key: 'suggestions',
-      render: (suggestions: string[]) => (
-        <ul style={{ margin: 0, paddingLeft: 20 }}>
-          {suggestions.map((suggestion, index) => (
-            <li key={index}>{suggestion}</li>
-          ))}
-        </ul>
-      ),
-    },
-  ];
+  const result = task.result;
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/diagnosis/list')}>
-        返回列表
-      </Button>
+      <Space>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(backPath)}>
+          返回列表
+        </Button>
+        <Button
+          icon={<ReloadOutlined />}
+          loading={diagnosisStore.loading}
+          onClick={() => id && diagnosisStore.fetchTaskDetail(id)}
+        >
+          刷新
+        </Button>
+      </Space>
 
       {/* 任务基本信息 */}
       <Card title="任务信息">
-        <Descriptions column={2} bordered>
-          <Descriptions.Item label="任务ID">{task.id}</Descriptions.Item>
-          <Descriptions.Item label="任务名称">{task.taskName}</Descriptions.Item>
-          <Descriptions.Item label="视频标题">{task.videoTitle}</Descriptions.Item>
-          <Descriptions.Item label="视频时长">
-            {Math.floor(task.videoDuration / 60)}:{(task.videoDuration % 60).toString().padStart(2, '0')}
+        <Descriptions column={2} bordered size="small">
+          <Descriptions.Item label="任务ID">
+            <Text copyable style={{ fontSize: 12 }}>{task.id}</Text>
           </Descriptions.Item>
-          <Descriptions.Item label="视频封面">
-            <Image src={task.videoCoverUrl} width={100} />
-          </Descriptions.Item>
-          <Descriptions.Item label="目标地区">{task.regionName}</Descriptions.Item>
-          <Descriptions.Item label="年龄段">{task.ageGroup}</Descriptions.Item>
-          <Descriptions.Item label="性别">{task.gender}</Descriptions.Item>
-          <Descriptions.Item label="样本量">{task.sampleSize}</Descriptions.Item>
           <Descriptions.Item label="任务状态">
-            <TaskStatusBadge status={task.status} />
+            <Tag color={statusCfg.color}>{statusCfg.label}</Tag>
           </Descriptions.Item>
+          <Descriptions.Item label="视频ID">
+            <Text copyable style={{ fontSize: 12 }}>{task.videoId}</Text>
+          </Descriptions.Item>
+          <Descriptions.Item label="广告主ID">{task.advertiserId}</Descriptions.Item>
+          <Descriptions.Item label="代理商ID">{task.agentId}</Descriptions.Item>
+          <Descriptions.Item label="来源">
+            <Tag>{task.source === 'NEW' ? '新素材' : '方舟素材'}</Tag>
+          </Descriptions.Item>
+          {task.oceanTaskId && (
+            <Descriptions.Item label="巨量任务ID">{task.oceanTaskId}</Descriptions.Item>
+          )}
+          {task.refAdId && (
+            <Descriptions.Item label="参考广告ID（1.0）">{task.refAdId}</Descriptions.Item>
+          )}
+          {task.refPromotionId && (
+            <Descriptions.Item label="参考广告ID（2.0）">{task.refPromotionId}</Descriptions.Item>
+          )}
           <Descriptions.Item label="创建时间">
             {dayjs(task.createdAt).format('YYYY-MM-DD HH:mm:ss')}
           </Descriptions.Item>
@@ -136,22 +133,68 @@ const DiagnosisDetail: React.FC = observer(() => {
         </Descriptions>
       </Card>
 
-      {/* 诊断结果 */}
-      {results.length > 0 && (
-        <>
-          <Card title="诊断结果概览">
-            <Radar {...radarConfig} />
-          </Card>
+      {/* 检测中提示 */}
+      {isPending && (
+        <Alert
+          type="info"
+          showIcon
+          message="检测进行中"
+          description="巨量引擎正在处理前测任务，通常需要数分钟，完成后将通过 Webhook 回调更新结果。可点击刷新查看最新状态。"
+        />
+      )}
 
-          <Card title="详细结果">
-            <Table
-              columns={resultColumns}
-              dataSource={results}
-              rowKey="id"
-              pagination={false}
-            />
-          </Card>
-        </>
+      {/* 前测结果 */}
+      {isSuccess && result && (
+        <Card title="前测结果">
+          <Descriptions column={3} bordered size="small">
+            <Descriptions.Item label="AD 优质">
+              <Tag color={QUALITY_CONFIG[result.isAdHighQuality]?.color}>
+                {QUALITY_CONFIG[result.isAdHighQuality]?.label ?? result.isAdHighQuality}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="千川优质">
+              <Tag color={QUALITY_CONFIG[result.isEcpHighQuality]?.color}>
+                {QUALITY_CONFIG[result.isEcpHighQuality]?.label ?? result.isEcpHighQuality}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="首发">
+              <Tag color={QUALITY_CONFIG[result.isFirstPublish]?.color}>
+                {QUALITY_CONFIG[result.isFirstPublish]?.label ?? result.isFirstPublish}
+              </Tag>
+            </Descriptions.Item>
+          </Descriptions>
+
+          {result.notAdHighQualityReason && result.notAdHighQualityReason.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <Text strong>AD 非优质原因：</Text>
+              <ul style={{ marginTop: 8, paddingLeft: 20 }}>
+                {result.notAdHighQualityReason.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {result.notEcpHighQualityReason && result.notEcpHighQualityReason.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <Text strong>千川非优质原因：</Text>
+              <ul style={{ marginTop: 8, paddingLeft: 20 }}>
+                {result.notEcpHighQualityReason.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {isSuccess && !result && (
+        <Alert
+          type="warning"
+          showIcon
+          message="结果待同步"
+          description="任务已完成，但结果数据尚未同步，请稍后刷新。"
+        />
       )}
     </Space>
   );
