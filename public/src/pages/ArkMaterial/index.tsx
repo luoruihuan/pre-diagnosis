@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Card,
   Table,
@@ -9,9 +9,10 @@ import {
   Alert,
   message,
   Tag,
-  Image,
+  Modal,
+  Tooltip,
 } from 'antd';
-import { SearchOutlined, CopyOutlined } from '@ant-design/icons';
+import { SearchOutlined, CopyOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
 import { getArkVideoList } from '../../services/material';
@@ -23,6 +24,7 @@ const { Text } = Typography;
 
 const ArkMaterial: React.FC = () => {
   const navigate = useNavigate();
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // 广告主/代理商选项
   const [advertiserOptions, setAdvertiserOptions] = useState<AdvertiserOption[]>([]);
@@ -40,6 +42,9 @@ const ArkMaterial: React.FC = () => {
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
   const [queried, setQueried] = useState(false);
+
+  // 预览 Modal 状态
+  const [previewVideo, setPreviewVideo] = useState<ArkVideo | null>(null);
 
   // 加载广告主选项
   useEffect(() => {
@@ -75,7 +80,6 @@ const ArkMaterial: React.FC = () => {
     if (option) {
       setCurrentAgentId(option.agentId);
     }
-    // 切换广告主时重置列表
     setList([]);
     setQueried(false);
     setPage(1);
@@ -83,7 +87,8 @@ const ArkMaterial: React.FC = () => {
 
   const handleQuery = () => {
     if (!currentAgentId) {
-      message.warning('请先选择广告主');     return;
+      message.warning('请先选择广告主');
+      return;
     }
     setPage(1);
     fetchList(currentAgentId, 1, pageSize);
@@ -110,36 +115,41 @@ const ArkMaterial: React.FC = () => {
     });
   };
 
+  const handlePreviewOpen = (video: ArkVideo) => {
+    setPreviewVideo(video);
+  };
+
+  const handlePreviewClose = () => {
+    // 关闭前先暂停，避免后台继续播放
+    if (videoRef.current) {
+      videoRef.current.pause();
+    }
+    setPreviewVideo(null);
+  };
+
   const columns: ColumnsType<ArkVideo> = [
     {
-      title: '封面',
-      dataIndex: 'coverUrl',
-      key: 'coverUrl',
-      width: 80,
-      render: (url: string) =>
-        url ? (
-          <Image src={url} width={60} height={40} style={{ objectFit: 'cover', borderRadius: 4 }} />
-        ) : (
-          <div style={{ width: 60, height: 40, background: '#f0f0f0', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#999' }}>
-            无封面
-          </div>
-        ),
-    },
-    {
-      title: '素材名称',
-      dataIndex: 'materialName',
-      key: 'materialName',
-      ellipsis: true,
-      render: (name: string) => <Text>{name || '—'}</Text>,
+      title: '预览',
+      key: 'preview',
+      width: 70,
+      render: (_: unknown, record: ArkVideo) => (
+        <Tooltip title="点击预览视频">
+          <Button
+            type="text"
+            icon={<PlayCircleOutlined style={{ fontSize: 28, color: '#1677ff' }} />}
+            style={{ padding: 0, height: 'auto' }}
+            onClick={() => handlePreviewOpen(record)}
+          />
+        </Tooltip>
+      ),
     },
     {
       title: 'Video ID',
       dataIndex: 'id',
       key: 'id',
-      width: 300,
       render: (id: string) => (
         <Space size={4}>
-          <Text code copyable={false} style={{ fontSize: 12 }}>
+          <Text code style={{ fontSize: 12 }}>
             {id}
           </Text>
           <Button
@@ -155,7 +165,7 @@ const ArkMaterial: React.FC = () => {
       title: '来源',
       dataIndex: 'source',
       key: 'source',
-      width: 100,
+      width: 90,
       render: (source: string) => <Tag>{source || '—'}</Tag>,
     },
     {
@@ -256,6 +266,52 @@ const ArkMaterial: React.FC = () => {
           选择广告主后点击查询，获取方舟素材库列表
         </div>
       )}
+
+      <Modal
+        open={!!previewVideo}
+        onCancel={handlePreviewClose}
+        footer={null}
+        title={
+          <Space size={8}>
+            <Text>视频预览</Text>
+            {previewVideo && (
+              <Text type="secondary" style={{ fontSize: 12, fontWeight: 'normal' }}>
+                {previewVideo.id}
+              </Text>
+            )}
+          </Space>
+        }
+        width={720}
+        destroyOnClose
+        centered
+      >
+        {previewVideo && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <video
+              ref={videoRef}
+              src={previewVideo.url}
+              controls
+              autoPlay
+              style={{ width: '100%', maxHeight: 400, borderRadius: 6, background: '#000' }}
+            />
+            <Space wrap size={[16, 8]}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                来源：<Tag style={{ marginLeft: 4 }}>{previewVideo.source || '—'}</Tag>
+              </Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                上传时间：{previewVideo.createTime || '—'}
+              </Text>
+              <Button
+                size="small"
+                icon={<CopyOutlined />}
+                onClick={() => handleCopy(previewVideo.url)}
+              >
+                复制视频链接
+              </Button>
+            </Space>
+          </div>
+        )}
+      </Modal>
     </Card>
   );
 };

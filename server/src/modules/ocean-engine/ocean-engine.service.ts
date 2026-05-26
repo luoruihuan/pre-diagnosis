@@ -297,12 +297,18 @@ export class OceanEngineService {
     const list = (data.list ?? []).map((item: any) => ({
       id: item.id as string,
       url: item.url as string,
-      coverUrl: item.cover_url as string,
-      materialName: (item.material_name || item.filename) as string,
+      coverUrl: (item.cover_url ?? '') as string,
+      materialName: (item.material_name || item.filename || '') as string,
       signature: item.signature as string,
       source: item.source as string,
       createTime: item.create_time as string,
       filename: item.filename as string,
+      advertiserId: item.advertiser_id as number | undefined,
+      width: item.width as number | undefined,
+      height: item.height as number | undefined,
+      duration: item.duration as number | undefined,
+      fileSize: item.size as number | undefined,
+      format: item.format as string | undefined,
     }));
 
     return {

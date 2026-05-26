@@ -32,6 +32,12 @@ export interface ArkVideo {
   source: string;
   createTime: string;
   filename: string;
+  advertiserId?: number;
+  width?: number;
+  height?: number;
+  duration?: number;
+  fileSize?: number;
+  format?: string;
 }
 
 export interface ArkVideoPageInfo {
