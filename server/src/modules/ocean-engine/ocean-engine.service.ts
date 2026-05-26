@@ -128,8 +128,8 @@ export class OceanEngineService {
       `→ GET /open_api/2/diagnosis_task/agent/get/ agentId=${agentId} taskIds=${taskIds.join(',')}`,
     );
 
-    // 手动构造 query string，task_ids 用重复 key 格式
-    const qs = [`agent_id=${agentId}`, ...taskIds.map((id) => `task_ids=${id}`)].join('&');
+    // 巨量要求 task_ids 传 JSON 数组格式
+    const qs = `agent_id=${agentId}&task_ids=${encodeURIComponent(JSON.stringify(taskIds))}`;
 
     const response = await this.axiosInstance.get(
       `/open_api/2/diagnosis_task/agent/get/?${qs}`,
