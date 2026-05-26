@@ -125,7 +125,7 @@ const DiagnosisList: React.FC = observer(() => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (status: string) => <TaskStatusBadge status={status} />,
+      render: (status: keyof typeof TASK_STATUS) => <TaskStatusBadge status={status} />,
     },
     {
       title: '创建时间',
