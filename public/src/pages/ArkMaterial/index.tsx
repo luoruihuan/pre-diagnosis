@@ -178,13 +178,13 @@ const ArkMaterial: React.FC = () => {
 
   const columns: ColumnsType<ArkVideo> = [
     {
-      title: '预��',
+      title: '预览',
       key: 'preview',
       width: 80,
       render: (_: unknown, record: ArkVideo) => (
         <Tooltip title="点击播放">
           <Button
-    type="text"
+            type="text"
             icon={<PlayCircleOutlined style={{ fontSize: 28, color: '#1677ff' }} />}
             style={{ padding: 0, height: 'auto' }}
             onClick={() => setPreviewVideo(record)}
@@ -196,6 +196,8 @@ const ArkMaterial: React.FC = () => {
       title: 'Video ID',
       dataIndex: 'id',
       key: 'id',
+      width: 220,
+      ellipsis: true,
       render: (id: string) => (
         <Space size={4}>
           <Text code style={{ fontSize: 12 }}>{id}</Text>
