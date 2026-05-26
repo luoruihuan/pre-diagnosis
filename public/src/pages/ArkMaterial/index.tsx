@@ -11,6 +11,7 @@ import {
   Tag,
   Modal,
   Tooltip,
+  Spin,
 } from 'antd';
 import { SearchOutlined, CopyOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -22,20 +23,139 @@ import type { ArkVideo } from '../../types/material';
 
 const { Text } = Typography;
 
+// ─── 视频缩略图：加载视频第一帧截图 ────────────────────────────────────────────
+const VideoThumb: React.FC<{ url: string; onClick: () => void }> = ({ url, onClick }) => {
+  const videoEl = useRef<HTMLVideoElement>(null);
+  const canvasEl = useRef<HTMLCanvasElement>(null);
+  const [thumb, setThumb] = useState<string | null>(null);
+  const [capturing, setCapturing] = useState(true);
+
+  useEffect(() => {
+    const video = document.createElement('video');
+    video.crossOrigin = 'anonymous';
+    video.muted = true;
+    video.preload = 'metadata';
+    // 跳到第 0.5 秒，避免纯黑帧
+    video.currentTime = 0.5;
+    video.src = url;
+
+    const capture = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 160;
+      canvas.height = video.videoHeight || 90;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        setThumb(canvas.toDataURL('image/jpeg', 0.7));
+      }
+      setCapturing(false);
+      video.src = '';
+    };
+
+    video.addEventListener('seeked', capture, { once: true });
+    video.addEventListener('error', () => setCapturing(false), { once: true });
+    video.load();
+
+    return () => {
+      video.src = '';
+    };
+  }, [url]);
+
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        width: 80,
+        height: 52,
+        borderRadius: 4,
+        overflow: 'hidden',
+        cursor: 'pointer',
+        position: 'relative',
+        background: '#1a1a1a',
+        flexShrink: 0,
+      }}
+    >
+      {capturing &&     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Spin size="small" />
+        </div>
+      )}
+      {!capturing && thumb && (
+        <img src={thumb} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      )}
+      {!capturing && !thumb && (
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <PlayCircleOutlined style={{ fontSize: 20, color: '#666' }} />
+        </div>
+      )}
+      {/* 悬浮播放图标遮罩 */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(0,0,0,0.3)',
+        opacity: 0,
+        transition: 'opacity 0.15s',
+      }}
+        onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+        onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
+      >
+        <PlayCircleOutlined style={{ fontSize: 22, color: '#fff' }} />
+      </div>
+    </div>
+  );
+};
+
+// ─── 视频预览播放器：每次挂载都是全新实例，彻底避免状态残留 ──────────────────
+const VideoPlayer: React.FC<{ url: string; onCopy: () => void; source: string; createTime: string }> = ({
+  url, onCopy, source, createTime,
+}) => {
+  const ref = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    return () => {
+      // 组件卸载时强制停止，释放网络连接
+      if (ref.current) {
+        ref.current.pause();
+        ref.current.src = '';
+        ref.current.load();
+      }
+    };
+  }, []);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <video
+        ref={ref}
+        src={url}
+        controls
+        autoPlay
+        style={{ width: '100%', maxHeight: 420, borderRadius: 6, background: '#000' }}
+      />
+      <Space wrap size={[16, 8]}>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          来源：<Tag style={{ marginLeft: 4 }}>{source || '—'}</Tag>
+        </Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          上传时间：{createTime || '—'}
+        </Text>
+        <Button size="small" icon={<CopyOutlined />} onClick={onCopy}>
+          复制视频链接
+        </Button>
+      </Space>
+    </div>
+  );
+};
+
+// ─── 主页面 ──────────────────────────────────────────────────────────────────
 const ArkMaterial: React.FC = () => {
   const navigate = useNavigate();
-  const videoRef = useRef<HTMLVideoElement>(null);
 
-  // 广告主/代理商选项
   const [advertiserOptions, setAdvertiserOptions] = useState<AdvertiserOption[]>([]);
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [noAccountsConfigured, setNoAccountsConfigured] = useState(false);
 
-  // 筛选状态
   const [selectedAdvertiserId, setSelectedAdvertiserId] = useState<number | null>(null);
   const [currentAgentId, setCurrentAgentId] = useState<number | null>(null);
 
-  // 列表状态
   const [list, setList] = useState<ArkVideo[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -43,18 +163,15 @@ const ArkMaterial: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [queried, setQueried] = useState(false);
 
-  // 预览 Modal 状态
+  // previewVideo 变化时 Modal 内的 VideoPlayer 会完全重新挂载
   const [previewVideo, setPreviewVideo] = useState<ArkVideo | null>(null);
 
-  // 加载广告主选项
   useEffect(() => {
     setOptionsLoading(true);
     getAdvertiserOptions()
       .then(data => {
         setAdvertiserOptions(data.advertiserOptions);
-        if (data.advertiserOptions.length === 0) {
-          setNoAccountsConfigured(true);
-        }
+        if (data.advertiserOptions.length === 0) setNoAccountsConfigured(true);
       })
       .catch(() => {})
       .finally(() => setOptionsLoading(false));
@@ -77,19 +194,14 @@ const ArkMaterial: React.FC = () => {
   const handleAdvertiserChange = (value: number) => {
     setSelectedAdvertiserId(value);
     const option = advertiserOptions.find(o => o.value === value);
-    if (option) {
-      setCurrentAgentId(option.agentId);
-    }
+    if (option) setCurrentAgentId(option.agentId);
     setList([]);
     setQueried(false);
     setPage(1);
   };
 
   const handleQuery = () => {
-    if (!currentAgentId) {
-      message.warning('请先选择广告主');
-      return;
-    }
+    if (!currentAgentId) { message.warning('请先选择广告主'); return; }
     setPage(1);
     fetchList(currentAgentId, 1, pageSize);
   };
@@ -97,9 +209,7 @@ const ArkMaterial: React.FC = () => {
   const handlePageChange = (p: number, ps: number) => {
     setPage(p);
     setPageSize(ps);
-    if (currentAgentId) {
-      fetchList(currentAgentId, p, ps);
-    }
+    if (currentAgentId) fetchList(currentAgentId, p, ps);
   };
 
   const handleStartDiagnosis = (video: ArkVideo) => {
@@ -110,37 +220,16 @@ const ArkMaterial: React.FC = () => {
   };
 
   const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      message.success('已复制');
-    });
-  };
-
-  const handlePreviewOpen = (video: ArkVideo) => {
-    setPreviewVideo(video);
-  };
-
-  const handlePreviewClose = () => {
-    // 关闭前先暂停，避免后台继续播放
-    if (videoRef.current) {
-      videoRef.current.pause();
-    }
-    setPreviewVideo(null);
+    navigator.clipboard.writeText(text).then(() => message.success('已复制'));
   };
 
   const columns: ColumnsType<ArkVideo> = [
     {
       title: '预览',
       key: 'preview',
-      width: 70,
+      width: 100,
       render: (_: unknown, record: ArkVideo) => (
-        <Tooltip title="点击预览视频">
-          <Button
-            type="text"
-            icon={<PlayCircleOutlined style={{ fontSize: 28, color: '#1677ff' }} />}
-            style={{ padding: 0, height: 'auto' }}
-            onClick={() => handlePreviewOpen(record)}
-          />
-        </Tooltip>
+        <VideoThumb url={record.url} onClick={() => setPreviewVideo(record)} />
       ),
     },
     {
@@ -149,15 +238,10 @@ const ArkMaterial: React.FC = () => {
       key: 'id',
       render: (id: string) => (
         <Space size={4}>
-          <Text code style={{ fontSize: 12 }}>
-            {id}
-          </Text>
-          <Button
-            type="text"
-            size="small"
-            icon={<CopyOutlined />}
-            onClick={() => handleCopy(id)}
-          />
+          <Text code style={{ fontSize: 12 }}>{id}</Text>
+          <Tooltip title="复制 ID">
+            <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => handleCopy(id)} />
+          </Tooltip>
         </Space>
       ),
     },
@@ -228,9 +312,7 @@ const ArkMaterial: React.FC = () => {
           }
         />
         {currentAgentId && (
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            代理商 ID：{currentAgentId}
-          </Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>代理商 ID：{currentAgentId}</Text>
         )}
         <Button
           type="primary"
@@ -269,47 +351,31 @@ const ArkMaterial: React.FC = () => {
 
       <Modal
         open={!!previewVideo}
-        onCancel={handlePreviewClose}
+        onCancel={() => setPreviewVideo(null)}
         footer={null}
         title={
-          <Space size={8}>
-            <Text>视频预览</Text>
-            {previewVideo && (
+          previewVideo && (
+            <Space size={8}>
+              <Text>视频预览</Text>
               <Text type="secondary" style={{ fontSize: 12, fontWeight: 'normal' }}>
                 {previewVideo.id}
               </Text>
-            )}
-          </Space>
+            </Space>
+          )
         }
         width={720}
         destroyOnClose
         centered
       >
+        {/* key 绑定 video id，切换视频时强制重新挂载 VideoPlayer */}
         {previewVideo && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <video
-              ref={videoRef}
-              src={previewVideo.url}
-              controls
-              autoPlay
-              style={{ width: '100%', maxHeight: 400, borderRadius: 6, background: '#000' }}
-            />
-            <Space wrap size={[16, 8]}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                来源：<Tag style={{ marginLeft: 4 }}>{previewVideo.source || '—'}</Tag>
-              </Text>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                上传时间：{previewVideo.createTime || '—'}
-              </Text>
-              <Button
-                size="small"
-                icon={<CopyOutlined />}
-                onClick={() => handleCopy(previewVideo.url)}
-              >
-                复制视频链接
-              </Button>
-            </Space>
-          </div>
+          <VideoPlayer
+            key={previewVideo.id}
+            url={previewVideo.url}
+            source={previewVideo.source}
+            createTime={previewVideo.createTime}
+            onCopy={() => handleCopy(previewVideo.url)}
+          />
         )}
       </Modal>
     </Card>
