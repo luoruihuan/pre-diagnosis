@@ -57,6 +57,7 @@ export class OceanEngineTokenService {
       redirect_uri: this.redirectUri,
       state,
       scope: 'ad.material.diagnosis',
+      material_auth: '1',
     });
 
     return `${this.OAUTH_BASE}/audit/oauth.html?${params.toString()}`;
