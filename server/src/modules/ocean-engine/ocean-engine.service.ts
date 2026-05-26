@@ -66,7 +66,7 @@ export class OceanEngineService {
    */
   async createDiagnosisTask(params: {
     agentId: number;
-    advertiserId: string;
+    advertiserId: number;
     videoIds: string[];
     refAdId?: number;
     refPromotionId?: number;
@@ -297,6 +297,8 @@ export class OceanEngineService {
     const list = (data.list ?? []).map((item: any) => ({
       id: item.id as string,
       url: item.url as string,
+      coverUrl: item.cover_url as string,
+      materialName: (item.material_name || item.filename) as string,
       signature: item.signature as string,
       source: item.source as string,
       createTime: item.create_time as string,

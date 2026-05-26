@@ -9,6 +9,7 @@ import {
   Alert,
   message,
   Tag,
+  Image,
 } from 'antd';
 import { SearchOutlined, CopyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -111,9 +112,23 @@ const ArkMaterial: React.FC = () => {
 
   const columns: ColumnsType<ArkVideo> = [
     {
-      title: '文件名',
-      dataIndex: 'filename',
-      key: 'filename',
+      title: '封面',
+      dataIndex: 'coverUrl',
+      key: 'coverUrl',
+      width: 80,
+      render: (url: string) =>
+        url ? (
+          <Image src={url} width={60} height={40} style={{ objectFit: 'cover', borderRadius: 4 }} />
+        ) : (
+          <div style={{ width: 60, height: 40, background: '#f0f0f0', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#999' }}>
+            无封面
+          </div>
+        ),
+    },
+    {
+      title: '素材名称',
+      dataIndex: 'materialName',
+      key: 'materialName',
       ellipsis: true,
       render: (name: string) => <Text>{name || '—'}</Text>,
     },
@@ -121,7 +136,7 @@ const ArkMaterial: React.FC = () => {
       title: 'Video ID',
       dataIndex: 'id',
       key: 'id',
-      width: 320,
+      width: 300,
       render: (id: string) => (
         <Space size={4}>
           <Text code copyable={false} style={{ fontSize: 12 }}>

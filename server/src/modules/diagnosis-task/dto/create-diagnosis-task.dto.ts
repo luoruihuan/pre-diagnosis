@@ -6,12 +6,14 @@ import {
   IsUUID,
   IsNumber,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateDiagnosisTaskDto {
   @ApiProperty({ description: '广告主 ID' })
-  @IsString()
+  @IsNumber()
   @IsNotEmpty()
-  advertiserId: string;
+  @Type(() => Number)
+  advertiserId: number;
 
   @ApiProperty({ description: '视频 ID' })
   @IsString()

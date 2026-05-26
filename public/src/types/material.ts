@@ -26,6 +26,8 @@ export interface MaterialListParams {
 export interface ArkVideo {
   id: string;
   url: string;
+  coverUrl: string;
+  materialName: string;
   signature: string;
   source: string;
   createTime: string;
