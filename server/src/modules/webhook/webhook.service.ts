@@ -28,16 +28,9 @@ export class WebhookService {
     signature: string,
     requestId: string,
   ): Promise<boolean> {
-    // 1. 检查请求是否已处理（防重放攻击）
-    const dedupeKey = `webhook:processed:${requestId}`;
-    const exists = await this.redis.exists(dedupeKey);
+    this.logger.log(`[签名调试-SVC] 进入verifySignature, requestId=${requestId}, signature=${signature}`);
 
-    if (exists) {
-      this.logger.warn(`重复请求: ${requestId}`);
-      return false;
-    }
-
-    // 2. 验证签名：HMAC-SHA256(rawBody, secret_key)
+    // 1. 验证签名：HMAC-SHA256(rawBody, secret_key)
     const secret = this.oceanConfig.webhookSecret;
     const expectedSignature = crypto
       .createHmac('sha256', secret)
@@ -49,22 +42,43 @@ export class WebhookService {
     this.logger.log(`[签名调试] 期望签名=${expectedSignature}`);
     this.logger.log(`[签名调试] 收到签名=${signature}`);
 
+    let isValid = false;
     try {
-      const isValid = crypto.timingSafeEqual(
+      isValid = crypto.timingSafeEqual(
         Buffer.from(expectedSignature, 'hex'),
         Buffer.from(signature, 'hex'),
       );
-
-      // 3. 签名验证通过后，标记请求已处理（10分钟过期）
-      if (isValid) {
-        await this.redis.setex(dedupeKey, 600, '1');
-      }
-
-      return isValid;
     } catch (error) {
-      this.logger.error(`签名验证失败: ${error.message}`);
+      this.logger.error(`签名比较异常: ${error.message}`);
       return false;
     }
+
+    if (!isValid) {
+      return false;
+    }
+
+    // 2. 签名验证通过后，再检查是否重复请求（防重放）
+    const dedupeKey = `webhook:processed:${requestId}`;
+    let exists = 0;
+    try {
+      exists = await this.redis.exists(dedupeKey);
+    } catch (e) {
+      this.logger.error(`[签名调试-SVC] Redis exists 异常: ${e.message}`);
+    }
+
+    if (exists) {
+      this.logger.warn(`重复请求: ${requestId}`);
+      return false;
+    }
+
+    // 3. 标记请求已处理（10分钟过期）
+    try {
+      await this.redis.setex(dedupeKey, 600, '1');
+    } catch (e) {
+      this.logger.error(`Redis setex 异常: ${e.message}`);
+    }
+
+    return true;
   }
 
   /**
