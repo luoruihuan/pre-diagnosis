@@ -267,12 +267,14 @@ export class OceanEngineService {
 
     const queryParams: Record<string, any> = { agent_id: agentId };
     if (filtering) {
-      if (filtering.videoIds?.length) queryParams['filtering[video_ids]'] = filtering.videoIds;
-      if (filtering.materialIds?.length) queryParams['filtering[material_ids]'] = filtering.materialIds;
-      if (filtering.signatures?.length) queryParams['filtering[signatures]'] = filtering.signatures;
-      if (filtering.startTime) queryParams['filtering[start_time]'] = filtering.startTime;
-      if (filtering.endTime) queryParams['filtering[end_time]'] = filtering.endTime;
-      if (filtering.source?.length) queryParams['filtering[source]'] = filtering.source;
+      const f: Record<string, any> = {};
+      if (filtering.videoIds?.length) f.video_ids = filtering.videoIds;
+      if (filtering.materialIds?.length) f.material_ids = filtering.materialIds;
+      if (filtering.signatures?.length) f.signatures = filtering.signatures;
+      if (filtering.startTime) f.start_time = filtering.startTime;
+      if (filtering.endTime) f.end_time = filtering.endTime;
+      if (filtering.source?.length) f.source = filtering.source;
+      if (Object.keys(f).length) queryParams.filtering = JSON.stringify(f);
     }
     if (page !== undefined) queryParams.page = page;
     if (pageSize !== undefined) queryParams.page_size = pageSize;
@@ -342,7 +344,7 @@ export class OceanEngineService {
         headers: { 'Access-Token': token },
         params: {
           advertiser_id: advertiserId,
-          video_ids: JSON.stringify(videoIds),
+          filtering: JSON.stringify({ video_ids: videoIds }),
         },
       },
     );
