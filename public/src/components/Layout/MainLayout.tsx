@@ -110,13 +110,13 @@ const MainLayout: React.FC = () => {
               flexShrink: 0,
             }}
           >
-            <ExperimentOutlined style={{ color: '#fff', fontSize: 14 }} />
+            {/* <ExperimentOutlined style={{ color: '#fff', fontSize: 14 }} /> */}
           </div>
           <Title
             level={5}
             style={{ margin: 0, whiteSpace: 'nowrap', color: token.colorText, fontWeight: 600 }}
           >
-            前测诊断平台
+            今日视界素材前测诊断平台
           </Title>
         </div>
 
