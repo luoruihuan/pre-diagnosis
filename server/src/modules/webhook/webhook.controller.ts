@@ -7,6 +7,7 @@ import {
   Query,
   Req,
   Res,
+  HttpCode,
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
@@ -41,6 +42,7 @@ export class WebhookController {
 
   @Public()
   @Post('ocean-engine')
+  @HttpCode(200)
   @ApiOperation({ summary: '接收巨量引擎 Webhook 回调' })
   @SwaggerResponse({ status: 200, description: '处理成功' })
   async handleWebhook(
