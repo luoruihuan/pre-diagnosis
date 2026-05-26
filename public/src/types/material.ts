@@ -30,14 +30,6 @@ export interface ArkVideo {
   source: string;
   createTime: string;
   filename: string;
-  // 由 /file/video/get/ 补全的元数据
-  coverUrl: string;
-  materialName: string;
-  width: number;
-  height: number;
-  duration: number;
-  size: number;
-  format: string;
 }
 
 export interface ArkVideoPageInfo {

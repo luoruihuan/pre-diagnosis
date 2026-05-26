@@ -13,10 +13,9 @@ export const uploadMaterial = async (params: MaterialUploadParams): Promise<Mate
   });
 };
 
-// 获取方舟素材库列表（含筛选条件）
+// 获取方舟素材库列表
 export const getArkVideoList = async (params: {
   agentId: number;
-  advertiserId?: number;
   page?: number;
   pageSize?: number;
   startTime?: string;

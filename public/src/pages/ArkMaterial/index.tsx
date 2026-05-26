@@ -28,7 +28,6 @@ import type { ArkVideo } from '../../types/material';
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
-// 来源枚举展示名
 const SOURCE_OPTIONS = [
   { label: '即创 (AIC)', value: 'AIC' },
   { label: '星图 (STAR)', value: 'STAR' },
@@ -44,59 +43,8 @@ const SOURCE_LABEL: Record<string, string> = Object.fromEntries(
   SOURCE_OPTIONS.map(o => [o.value, o.label]),
 );
 
-const formatDuration = (seconds: number) => {
-  if (!seconds) return '—';
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `0:${String(s).padStart(2, '0')}`;
-};
-
-const formatSize = (bytes: number) => {
-  if (!bytes) return '—';
-  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${bytes} B`;
-};
-
-// ─── 封面图缩略图 ─────────────────────────────────────────────────────────────
-const CoverThumb: React.FC<{ coverUrl: string; onClick: () => void }> = ({ coverUrl, onClick }) => {
-  const [failed, setFailed] = useState(false);
-
-  if (coverUrl && !failed) {
-    return (
-      <div
-        onClick={onClick}
-        style={{ width: 80, height: 52, borderRadius: 4, overflow: 'hidden', cursor: 'pointer', position: 'relative', flexShrink: 0 }}
-      >
-        <img
-          src={coverUrl}
-          alt=""
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          onError={() => setFailed(true)}
-        />
-        <div
-          style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', opacity: 0, transition: 'opacity 0.15s' }}
-          onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-          onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
-        >
-          <PlayCircleOutlined style={{ fontSize: 22, color: '#fff' }} />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      onClick={onClick}
-      style={{ width: 80, height: 52, borderRadius: 4, background: '#1a1a1a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-    >
-      <PlayCircleOutlined style={{ fontSize: 22, color: '#666' }} />
-    </div>
-  );
-};
-
-// ─── 视频播放器：poster 直接用 cover_url，彻底解决黑屏 ──────────────────────
-const VideoPlayer: React.FC<{ url: string; coverUrl: string }> = ({ url, coverUrl }) => {
+// ─── 视频播放器 ───────────────────────────────────────────────────────────────
+const VideoPlayer: React.FC<{ url: string }> = ({ url }) => {
   const ref = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -113,7 +61,6 @@ const VideoPlayer: React.FC<{ url: string; coverUrl: string }> = ({ url, coverUr
     <video
       ref={ref}
       src={url}
-      poster={coverUrl || undefined}
       controls
       autoPlay
       style={{ width: '100%', maxHeight: 420, borderRadius: 6, background: '#000', display: 'block' }}
@@ -153,6 +100,12 @@ const ArkMaterial: React.FC = () => {
       .then(data => {
         setAdvertiserOptions(data.advertiserOptions);
         if (data.advertiserOptions.length === 0) setNoAccountsConfigured(true);
+        // 自动选第一个广告主，取其 agentId 用于查询
+        if (data.advertiserOptions.length > 0) {
+          const first = data.advertiserOptions[0];
+          setSelectedAdvertiserId(first.value);
+          setCurrentAgentId(first.agentId);
+        }
       })
       .catch(() => {})
       .finally(() => setOptionsLoading(false));
@@ -160,7 +113,6 @@ const ArkMaterial: React.FC = () => {
 
   const fetchList = useCallback(async (
     agentId: number,
-    advertiserId: number | null,
     p: number,
     ps: number,
     filters: { dateRange: [string, string] | null; sources: string[]; videoId: string },
@@ -169,7 +121,6 @@ const ArkMaterial: React.FC = () => {
     try {
       const res = await getArkVideoList({
         agentId,
-        advertiserId: advertiserId ?? undefined,
         page: p,
         pageSize: ps,
         startTime: filters.dateRange?.[0],
@@ -191,15 +142,13 @@ const ArkMaterial: React.FC = () => {
     setSelectedAdvertiserId(value);
     const option = advertiserOptions.find(o => o.value === value);
     if (option) setCurrentAgentId(option.agentId);
-    setList([]);
-    setQueried(false);
-    setPage(1);
+    // 广告主切换不影响列表（都是同一个代理商），只影响发起前测时的 advertiserId
   };
 
   const handleQuery = () => {
     if (!currentAgentId) { message.warning('请先选择广告主'); return; }
     setPage(1);
-    fetchList(currentAgentId, selectedAdvertiserId, 1, pageSize, { dateRange, sources: selectedSources, videoId: videoIdInput });
+    fetchList(currentAgentId, 1, pageSize, { dateRange, sources: selectedSources, videoId: videoIdInput });
   };
 
   const handleReset = () => {
@@ -212,7 +161,7 @@ const ArkMaterial: React.FC = () => {
     setPage(p);
     setPageSize(ps);
     if (currentAgentId) {
-      fetchList(currentAgentId, selectedAdvertiserId, p, ps, { dateRange, sources: selectedSources, videoId: videoIdInput });
+      fetchList(currentAgentId, p, ps, { dateRange, sources: selectedSources, videoId: videoIdInput });
     }
   };
 
@@ -229,43 +178,27 @@ const ArkMaterial: React.FC = () => {
 
   const columns: ColumnsType<ArkVideo> = [
     {
-      title: '封面',
-      key: 'cover',
-      width: 100,
+      title: '预��',
+      key: 'preview',
+      width: 80,
       render: (_: unknown, record: ArkVideo) => (
-        <CoverThumb coverUrl={record.coverUrl} onClick={() => setPreviewVideo(record)} />
-      ),
-    },
-    {
-      title: '素材信息',
-      key: 'info',
-      render: (_: unknown, record: ArkVideo) => (
-        <Space direction="vertical" size={2}>
-          <Text style={{ fontSize: 13 }}>
-            {record.materialName && record.materialName !== record.filename
-              ? record.materialName
-              : <Text type="secondary" style={{ fontSize: 12 }}>（无名称）</Text>
-            }
-          </Text>
-          {(record.width > 0 && record.height > 0) && (
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              {record.width}×{record.height}
-              {record.format ? `  ${record.format.toUpperCase()}` : ''}
-              {record.duration > 0 ? `  ${formatDuration(record.duration)}` : ''}
-              {record.size > 0 ? `  ${formatSize(record.size)}` : ''}
-            </Text>
-          )}
-        </Space>
+        <Tooltip title="点击播放">
+          <Button
+    type="text"
+            icon={<PlayCircleOutlined style={{ fontSize: 28, color: '#1677ff' }} />}
+            style={{ padding: 0, height: 'auto' }}
+            onClick={() => setPreviewVideo(record)}
+          />
+        </Tooltip>
       ),
     },
     {
       title: 'Video ID',
       dataIndex: 'id',
       key: 'id',
-      width: 220,
       render: (id: string) => (
         <Space size={4}>
-          <Text code style={{ fontSize: 11 }}>{id}</Text>
+          <Text code style={{ fontSize: 12 }}>{id}</Text>
           <Tooltip title="复制 ID">
             <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => handleCopy(id)} />
           </Tooltip>
@@ -273,10 +206,10 @@ const ArkMaterial: React.FC = () => {
       ),
     },
     {
-      title: 'Signature',
+      title: 'Signature (MD5)',
       dataIndex: 'signature',
       key: 'signature',
-      width: 120,
+      width: 140,
       render: (sig: string) => sig ? (
         <Space size={4}>
           <Text type="secondary" style={{ fontSize: 11 }}>{sig.slice(0, 8)}…</Text>
@@ -290,16 +223,14 @@ const ArkMaterial: React.FC = () => {
       title: '来源',
       dataIndex: 'source',
       key: 'source',
-      width: 110,
-      render: (source: string) => (
-        <Tag>{SOURCE_LABEL[source] ?? source ?? '—'}</Tag>
-      ),
+      width: 130,
+      render: (source: string) => <Tag>{SOURCE_LABEL[source] ?? source ?? '—'}</Tag>,
     },
     {
       title: '上传时间',
       dataIndex: 'createTime',
       key: 'createTime',
-      width: 170,
+      width: 180,
     },
     {
       title: '操作',
@@ -333,12 +264,11 @@ const ArkMaterial: React.FC = () => {
         />
       )}
 
-      {/* 筛选区 */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col>
           <Select
-            placeholder="请选择广告主"
-            style={{ width: 220 }}
+            placeholder="选择广告主（用于发起前测）"
+            style={{ width: 240 }}
             loading={optionsLoading}
             options={advertiserOptions}
             showSearch
@@ -414,7 +344,7 @@ const ArkMaterial: React.FC = () => {
           columns={columns}
           dataSource={list}
           loading={loading}
-          scroll={{ x: 1100 }}
+          scroll={{ x: 900 }}
           pagination={{
             current: page,
             pageSize,
@@ -429,11 +359,10 @@ const ArkMaterial: React.FC = () => {
 
       {!queried && !noAccountsConfigured && (
         <div style={{ textAlign: 'center', padding: '48px 0', color: '#999' }}>
-          选择广告主后点击查询，获取方舟素材库列表
+          点击查询，获取方舟素材库列表
         </div>
       )}
 
-      {/* 视频预览 Modal */}
       <Modal
         open={!!previewVideo}
         onCancel={() => setPreviewVideo(null)}
@@ -443,9 +372,7 @@ const ArkMaterial: React.FC = () => {
             <Space size={8}>
               <Text>视频预览</Text>
               <Text type="secondary" style={{ fontSize: 12, fontWeight: 'normal' }}>
-                {previewVideo.materialName && previewVideo.materialName !== previewVideo.filename
-                  ? previewVideo.materialName
-                  : previewVideo.id}
+                {previewVideo.id}
               </Text>
             </Space>
           )
@@ -456,20 +383,8 @@ const ArkMaterial: React.FC = () => {
       >
         {previewVideo && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <VideoPlayer
-              key={previewVideo.id}
-              url={previewVideo.url}
-              coverUrl={previewVideo.coverUrl}
-            />
+            <VideoPlayer key={previewVideo.id} url={previewVideo.url} />
             <Space wrap size={[16, 8]}>
-              {previewVideo.width > 0 && (
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  {previewVideo.width}×{previewVideo.height}
-                  {previewVideo.format ? `  ${previewVideo.format.toUpperCase()}` : ''}
-                  {previewVideo.duration > 0 ? `  ${formatDuration(previewVideo.duration)}` : ''}
-                  {previewVideo.size > 0 ? `  ${formatSize(previewVideo.size)}` : ''}
-                </Text>
-              )}
               <Text type="secondary" style={{ fontSize: 12 }}>
                 来源：<Tag style={{ marginLeft: 4 }}>{SOURCE_LABEL[previewVideo.source] ?? previewVideo.source ?? '—'}</Tag>
               </Text>
