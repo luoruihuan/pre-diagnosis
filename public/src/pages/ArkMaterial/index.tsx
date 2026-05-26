@@ -75,7 +75,8 @@ const VideoThumb: React.FC<{ url: string; onClick: () => void }> = ({ url, onCli
         flexShrink: 0,
       }}
     >
-      {capturing &&     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {capturing && (
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Spin size="small" />
         </div>
       )}
