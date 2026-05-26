@@ -38,10 +38,16 @@ export class WebhookService {
     }
 
     // 2. 验证签名：HMAC-SHA256(rawBody, secret_key)
+    const secret = this.oceanConfig.webhookSecret;
     const expectedSignature = crypto
-      .createHmac('sha256', this.oceanConfig.webhookSecret)
+      .createHmac('sha256', secret)
       .update(rawBody)
       .digest('hex');
+
+    this.logger.log(`[签名调试] secretKey长度=${secret?.length}, rawBody长度=${rawBody?.length}`);
+    this.logger.log(`[签名调试] rawBody内容=${rawBody?.toString('utf8')}`);
+    this.logger.log(`[签名调试] 期望签名=${expectedSignature}`);
+    this.logger.log(`[签名调试] 收到签名=${signature}`);
 
     try {
       const isValid = crypto.timingSafeEqual(

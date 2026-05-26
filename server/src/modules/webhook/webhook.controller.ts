@@ -50,6 +50,8 @@ export class WebhookController {
     @Req() req: Request,
   ) {
     this.logger.log(`收到 Webhook: service_label=${body.service_label}, message_id=${body.message_id}`);
+    this.logger.log(`[签名调试] X-Open-Signature 原始值="${signature}"`);
+    this.logger.log(`[签名调试] 所有请求头=${JSON.stringify(req.headers)}`);
 
     // 使用原始请求体字节做签名，避免 JSON 序列化导致字段顺序/空格不一致
     const rawBody: Buffer = (req as any).rawBody;
@@ -57,10 +59,16 @@ export class WebhookController {
       this.logger.error('rawBody 未捕获，请检查 main.ts 中的 body parser 配置');
       throw new UnauthorizedException('签名验证失败');
     }
+    this.logger.log(`[签名调试] rawBody 已捕获，长度=${rawBody.length}`);
+
+    // 去掉可能的前缀（如 "sha256="）
+    const cleanSignature = signature?.startsWith('sha256=')
+      ? signature.slice(7)
+      : signature;
 
     const isValid = await this.webhookService.verifySignature(
       rawBody,
-      signature,
+      cleanSignature,
       body.message_id || `${Date.now()}-${Math.random()}`,
     );
 

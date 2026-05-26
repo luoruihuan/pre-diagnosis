@@ -34,6 +34,7 @@ const menuItems = [
     icon: <InboxOutlined />,
     label: '已有素材检测',
     children: [
+      { key: '/ark-material', label: '方舟素材库' },
       { key: '/ark-material/tasks', label: '任务列表' },
     ],
   },
