@@ -45,7 +45,7 @@ export class DiagnosisTaskService {
 
     // 检查 QPS 限流
     const canProceed = await this.oceanEngineService.checkQpsLimit(
-      advertiserId,
+      String(advertiserId),
       videoId,
     );
 
@@ -89,7 +89,7 @@ export class DiagnosisTaskService {
 
     // 保存任务记录（status=PENDING）
     const task = this.taskRepository.create({
-      advertiserId,
+      advertiserId: String(advertiserId),
       videoId,
       configId,
       oceanTaskId,
@@ -100,7 +100,7 @@ export class DiagnosisTaskService {
       status: DiagnosisStatus.PENDING,
     });
 
-    const savedTask = await this.taskRepository.save(task);
+    const savedTask = await this.taskRepository.save(task) as DiagnosisTask;
 
     // 加入轮询队列（最多 12 次，每次 10s 间隔）
     await this.pollingQueue.add(
