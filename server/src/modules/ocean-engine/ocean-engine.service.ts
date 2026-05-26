@@ -237,13 +237,11 @@ export class OceanEngineService {
   /**
    * 获取方舟/即创素材列表
    * GET https://api.oceanengine.com/open_api/2/file/video/agent/get/
+   * 官方文档只返回 6 个字段：id/url/signature/source/create_time/filename
    */
   async getArkVideoList(params: {
     agentId: number;
     filtering?: {
-      width?: number;
-      height?: number;
-      ratio?: number[];
       videoIds?: string[];
       materialIds?: number[];
       signatures?: string[];
@@ -254,7 +252,14 @@ export class OceanEngineService {
     page?: number;
     pageSize?: number;
   }): Promise<{
-    list: Array<{ id: string; url: string; signature: string; source: string; createTime: string; filename: string }>;
+    list: Array<{
+      id: string;
+      url: string;
+      signature: string;
+      source: string;
+      createTime: string;
+      filename: string;
+    }>;
     pageInfo: { page: number; pageSize: number; totalPage: number; totalNumber: number };
   }> {
     const { agentId, filtering, page, pageSize } = params;
@@ -262,10 +267,6 @@ export class OceanEngineService {
 
     const queryParams: Record<string, any> = { agent_id: agentId };
     if (filtering) {
-      // 巨量引擎 filtering 参数用 filtering[key] 格式（bracket notation）
-      if (filtering.width !== undefined) queryParams['filtering[width]'] = filtering.width;
-      if (filtering.height !== undefined) queryParams['filtering[height]'] = filtering.height;
-      if (filtering.ratio?.length) queryParams['filtering[ratio]'] = filtering.ratio;
       if (filtering.videoIds?.length) queryParams['filtering[video_ids]'] = filtering.videoIds;
       if (filtering.materialIds?.length) queryParams['filtering[material_ids]'] = filtering.materialIds;
       if (filtering.signatures?.length) queryParams['filtering[signatures]'] = filtering.signatures;
@@ -276,16 +277,11 @@ export class OceanEngineService {
     if (page !== undefined) queryParams.page = page;
     if (pageSize !== undefined) queryParams.page_size = pageSize;
 
-    this.logger.debug(
-      `→ GET /open_api/2/file/video/agent/get/ params=${JSON.stringify(queryParams)}`,
-    );
+    this.logger.debug(`→ GET /open_api/2/file/video/agent/get/ params=${JSON.stringify(queryParams)}`);
 
     const response = await this.axiosInstance.get(
       '/open_api/2/file/video/agent/get/',
-      {
-        headers: { 'Access-Token': token },
-        params: queryParams,
-      },
+      { headers: { 'Access-Token': token }, params: queryParams },
     );
 
     const { code, message, data } = response.data;
@@ -297,18 +293,10 @@ export class OceanEngineService {
     const list = (data.list ?? []).map((item: any) => ({
       id: item.id as string,
       url: item.url as string,
-      coverUrl: (item.cover_url ?? '') as string,
-      materialName: (item.material_name || item.filename || '') as string,
       signature: item.signature as string,
       source: item.source as string,
       createTime: item.create_time as string,
       filename: item.filename as string,
-      advertiserId: item.advertiser_id as number | undefined,
-      width: item.width as number | undefined,
-      height: item.height as number | undefined,
-      duration: item.duration as number | undefined,
-      fileSize: item.size as number | undefined,
-      format: item.format as string | undefined,
     }));
 
     return {
@@ -320,6 +308,77 @@ export class OceanEngineService {
         totalNumber: pi.total_number ?? 0,
       },
     };
+  }
+
+  /**
+   * 批量获取视频详情（补全封面图、尺寸、时长等元数据）
+   * GET https://api.oceanengine.com/open_api/2/file/video/get/
+   * 单次最多 100 个 video_ids，QPS 10
+   */
+  async getVideoDetails(params: {
+    advertiserId: number;
+    videoIds: string[];
+  }): Promise<Map<string, {
+    coverUrl: string;
+    materialName: string;
+    width: number;
+    height: number;
+    duration: number;
+    size: number;
+    format: string;
+  }>> {
+    const { advertiserId, videoIds } = params;
+    if (!videoIds.length) return new Map();
+
+    const token = await this.getAccessToken();
+
+    this.logger.debug(
+      `→ GET /open_api/2/file/video/get/ advertiserId=${advertiserId} count=${videoIds.length}`,
+    );
+
+    const response = await this.axiosInstance.get(
+      '/open_api/2/file/video/get/',
+      {
+        headers: { 'Access-Token': token },
+        params: {
+          advertiser_id: advertiserId,
+          video_ids: JSON.stringify(videoIds),
+        },
+      },
+    );
+
+    const { code, message, data } = response.data;
+    if (code !== 0) {
+      // 补全失败不抛出，降级返回空 Map，列表仍可正常展示
+      this.logger.warn(`getVideoDetails 失败 [${code}]: ${message}`);
+      return new Map();
+    }
+
+    const result = new Map<string, {
+      coverUrl: string;
+      materialName: string;
+      width: number;
+      height: number;
+      duration: number;
+      size: number;
+      format: string;
+    }>();
+
+    for (const item of (data.list ?? [])) {
+      const videoId = (item.video_id ?? item.id) as string;
+      result.set(videoId, {
+        // cover_url 和 poster_url 两个字段名都兼容
+        coverUrl: (item.cover_url ?? item.poster_url ?? '') as string,
+        materialName: (item.material_name ?? '') as string,
+        width: (item.width ?? 0) as number,
+        height: (item.height ?? 0) as number,
+        duration: (item.duration ?? 0) as number,
+        size: (item.size ?? 0) as number,
+        format: (item.format ?? '') as string,
+      });
+    }
+
+    return result;
   }
 
   /**

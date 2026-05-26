@@ -26,18 +26,18 @@ export interface MaterialListParams {
 export interface ArkVideo {
   id: string;
   url: string;
-  coverUrl: string;
-  materialName: string;
   signature: string;
   source: string;
   createTime: string;
   filename: string;
-  advertiserId?: number;
-  width?: number;
-  height?: number;
-  duration?: number;
-  fileSize?: number;
-  format?: string;
+  // 由 /file/video/get/ 补全的元数据
+  coverUrl: string;
+  materialName: string;
+  width: number;
+  height: number;
+  duration: number;
+  size: number;
+  format: string;
 }
 
 export interface ArkVideoPageInfo {
