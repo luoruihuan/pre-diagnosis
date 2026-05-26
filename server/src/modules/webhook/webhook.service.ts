@@ -27,7 +27,7 @@ export class WebhookService {
     rawBody: Buffer,
     signature: string,
     requestId: string,
-  ): Promise<boolean> {
+  ): Promise<'ok' | 'invalid' | 'duplicate'> {
     this.logger.log(`[签名调试-SVC] 进入verifySignature, requestId=${requestId}, signature=${signature}`);
 
     // 1. 验证签名：HMAC-SHA256(rawBody, secret_key)
@@ -50,11 +50,11 @@ export class WebhookService {
       );
     } catch (error) {
       this.logger.error(`签名比较异常: ${error.message}`);
-      return false;
+      return 'invalid';
     }
 
     if (!isValid) {
-      return false;
+      return 'invalid';
     }
 
     // 2. 签名验证通过后，再检查是否重复请求（防重放）
@@ -67,8 +67,8 @@ export class WebhookService {
     }
 
     if (exists) {
-      this.logger.warn(`重复请求: ${requestId}`);
-      return false;
+      this.logger.warn(`重复请求已忽略: ${requestId}`);
+      return 'duplicate';
     }
 
     // 3. 标记请求已处理（10分钟过期）
@@ -78,7 +78,7 @@ export class WebhookService {
       this.logger.error(`Redis setex 异常: ${e.message}`);
     }
 
-    return true;
+    return 'ok';
   }
 
   /**

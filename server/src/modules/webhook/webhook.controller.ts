@@ -66,15 +66,20 @@ export class WebhookController {
       ? signature.slice(7)
       : signature;
 
-    const isValid = await this.webhookService.verifySignature(
+    const result = await this.webhookService.verifySignature(
       rawBody,
       cleanSignature,
       body.message_id || `${Date.now()}-${Math.random()}`,
     );
 
-    if (!isValid) {
+    if (result === 'invalid') {
       this.logger.warn('Webhook 签名验证失败');
       throw new UnauthorizedException('签名验证失败');
+    }
+
+    if (result === 'duplicate') {
+      this.logger.log('重复请求，直接返回成功');
+      return { code: 0, message: 'success' };
     }
 
     // 处理前测完成事件，service_label 对应前测类型
