@@ -9,7 +9,6 @@ import {
   Index,
 } from 'typeorm';
 import { DiagnosisStatus } from '../enums/diagnosis-status.enum';
-import { Material } from './material.entity';
 import { DiagnosisConfig } from './diagnosis-config.entity';
 
 @Entity('diagnosis_tasks')
@@ -24,10 +23,6 @@ export class DiagnosisTask {
   @Column({ name: 'video_id', type: 'varchar', length: 50 })
   @Index()
   videoId: string;
-
-  @ManyToOne(() => Material, { nullable: true })
-  @JoinColumn({ name: 'video_id', referencedColumnName: 'videoId' })
-  material: Material;
 
   @Column({ name: 'config_id', type: 'uuid', nullable: true })
   configId: string;

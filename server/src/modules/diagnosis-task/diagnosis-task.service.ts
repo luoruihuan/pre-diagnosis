@@ -127,7 +127,6 @@ export class DiagnosisTaskService {
 
     const queryBuilder = this.taskRepository
       .createQueryBuilder('task')
-      .leftJoinAndSelect('task.material', 'material')
       .leftJoinAndSelect('task.config', 'config');
 
     if (advertiserId) {
@@ -158,7 +157,7 @@ export class DiagnosisTaskService {
   async findOne(id: string): Promise<DiagnosisTask> {
     const task = await this.taskRepository.findOne({
       where: { id },
-      relations: ['material', 'config'],
+      relations: ['config'],
     });
 
     if (!task) {
@@ -174,7 +173,7 @@ export class DiagnosisTaskService {
   async findByOceanTaskId(oceanTaskId: string): Promise<DiagnosisTask | null> {
     const task = await this.taskRepository.findOne({
       where: { oceanTaskId },
-      relations: ['material', 'config'],
+      relations: ['config'],
     });
 
     return task;
