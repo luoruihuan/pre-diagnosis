@@ -369,9 +369,9 @@ export class OceanEngineService {
     for (const item of (data.list ?? [])) {
       const videoId = (item.video_id ?? item.id) as string;
       result.set(videoId, {
-        // cover_url 和 poster_url 两个字段名都兼容
-        coverUrl: (item.cover_url ?? item.poster_url ?? '') as string,
-        materialName: (item.material_name ?? '') as string,
+        // 文档字段名为 poster_url
+        coverUrl: (item.poster_url ?? '') as string,
+        materialName: (item.filename ?? '') as string,
         width: (item.width ?? 0) as number,
         height: (item.height ?? 0) as number,
         duration: (item.duration ?? 0) as number,
