@@ -15,22 +15,31 @@ export const uploadMaterial = async (params: MaterialUploadParams): Promise<Mate
   });
 };
 
-// 上传视频至巨量引擎方舟（前测专用）
-export const uploadVideoToOcean = async (params: {
+// 异步上传视频至巨量引擎方舟（推荐，解决 Cloudflare 120s 超时）
+// 第一步：上传文件到后端，立即返回 taskId
+export const uploadVideoAsync = async (params: {
   agentId: number;
   fileName: string;
   file: File;
-}): Promise<{ videoId: string; materialId: number; videoUrl: string }> => {
+}): Promise<{ taskId: string }> => {
   const formData = new FormData();
   formData.append('agentId', String(params.agentId));
   formData.append('fileName', params.fileName);
   formData.append('video', params.file);
 
-  return request.post('/materials/upload-video', formData, {
+  return request.post('/materials/upload-video/async', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 300000, // 5 分钟，覆盖全局 30s
+    timeout: 120000, // 文件传到后端最多 2 分钟
   });
 };
+
+// 第二步：轮询上传任务状态
+export const getUploadStatus = async (taskId: string): Promise<{
+  status: 'PENDING' | 'UPLOADING' | 'SUCCESS' | 'FAILED';
+  progress: number;
+  result?: { videoId: string; materialId: number; videoUrl: string };
+  error?: string;
+}> => request.get(`/materials/upload-video/status/${taskId}`);
 
 // 获取方舟素材库列表
 export const getArkVideoList = async (params: {

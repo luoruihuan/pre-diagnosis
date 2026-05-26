@@ -29,15 +29,14 @@ const VideoThumb: React.FC<{ url: string; onClick: () => void }> = ({ url, onCli
   const [capturing, setCapturing] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     const video = document.createElement('video');
-    video.crossOrigin = 'anonymous';
     video.muted = true;
     video.preload = 'metadata';
-    // 跳到第 0.5 秒，避免纯黑帧
-    video.currentTime = 0.5;
     video.src = url;
 
     const capture = () => {
+      if (cancelled) return;
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth || 160;
       canvas.height = video.videoHeight || 90;
@@ -50,11 +49,20 @@ const VideoThumb: React.FC<{ url: string; onClick: () => void }> = ({ url, onCli
       video.src = '';
     };
 
-    video.addEventListener('seeked', capture, { once: true });
-    video.addEventListener('error', () => setCapturing(false), { once: true });
+    const onMeta = () => {
+      if (cancelled) return;
+      // metadata 加载完才能 seek，否则 seeked 不触发
+      const seekTo = Math.min(0.5, video.duration * 0.1);
+      video.addEventListener('seeked', capture, { once: true });
+      video.currentTime = seekTo;
+    };
+
+    video.addEventListener('loadedmetadata', onMeta, { once: true });
+    video.addEventListener('error', () => { if (!cancelled) setCapturing(false); }, { once: true });
     video.load();
 
     return () => {
+      cancelled = true;
       video.src = '';
     };
   }, [url]);
