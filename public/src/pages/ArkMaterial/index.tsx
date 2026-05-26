@@ -25,8 +25,6 @@ const { Text } = Typography;
 
 // ─── 视频缩略图：加载视频第一帧截图 ────────────────────────────────────────────
 const VideoThumb: React.FC<{ url: string; onClick: () => void }> = ({ url, onClick }) => {
-  const videoEl = useRef<HTMLVideoElement>(null);
-  const canvasEl = useRef<HTMLCanvasElement>(null);
   const [thumb, setThumb] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(true);
 
