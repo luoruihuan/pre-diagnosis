@@ -30,12 +30,32 @@ const VideoThumb: React.FC<{ url: string; onClick: () => void }> = ({ url, onCli
 
   useEffect(() => {
     let cancelled = false;
+
+    // 8 秒超时兜底，防止永远 loading
+    const timer = window.setTimeout(() => {
+      if (!cancelled) {
+        cancelled = true;
+        setCapturing(false);
+        cleanup();
+      }
+    }, 8000);
+
     const video = document.createElement('video');
     video.muted = true;
-    video.preload = 'metadata';
+    // preload=auto 才会下载帧数据，metadata 模式 drawImage 只会得到黑帧
+    video.preload = 'auto';
     video.src = url;
 
-    const capture = () => {
+    const cleanup = () => {
+      video.removeEventListener('loadedmetadata', onMeta);
+      video.removeEventListener('canplay', onCanPlay);
+      video.removeEventListener('seeked', onSeeked);
+      video.removeEventListener('error', onError);
+      video.src = '';
+      video.load();
+    };
+
+    const doCapture = () => {
       if (cancelled) return;
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth || 160;
@@ -43,27 +63,56 @@ const VideoThumb: React.FC<{ url: string; onClick: () => void }> = ({ url, onCli
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        setThumb(canvas.toDataURL('image/jpeg', 0.7));
+        try {
+          // tainted canvas（CDN 无 CORS 头）会在这里抛 SecurityError，静默降级
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          if (!cancelled) setThumb(dataUrl);
+        } catch {
+          // 降级：显示播放图标
+        }
       }
-      setCapturing(false);
-      video.src = '';
+      if (!cancelled) setCapturing(false);
+      cancelled = true;
+      window.clearTimeout(timer);
+      cleanup();
+    };
+
+    const onSeeked = () => {
+      if (cancelled) return;
+      // seeked 后等一帧，确保解码器已将像素写入，避免黑帧
+      requestAnimationFrame(doCapture);
+    };
+
+    const onCanPlay = () => {
+      if (cancelled) return;
+      // canplay 后帧数据已就绪，再 seek 才能拿到真实像素
+      const seekTo = video.duration > 0 ? Math.min(1, video.duration * 0.1) : 0;
+      video.addEventListener('seeked', onSeeked, { once: true });
+      video.currentTime = seekTo;
     };
 
     const onMeta = () => {
       if (cancelled) return;
-      // metadata 加载完才能 seek，否则 seeked 不触发
-      const seekTo = Math.min(0.5, video.duration * 0.1);
-      video.addEventListener('seeked', capture, { once: true });
-      video.currentTime = seekTo;
+      video.addEventListener('canplay', onCanPlay, { once: true });
+    };
+
+    const onError = () => {
+      if (!cancelled) {
+        setCapturing(false);
+        cancelled = true;
+        window.clearTimeout(timer);
+        cleanup();
+      }
     };
 
     video.addEventListener('loadedmetadata', onMeta, { once: true });
-    video.addEventListener('error', () => { if (!cancelled) setCapturing(false); }, { once: true });
+    video.addEventListener('error', onError, { once: true });
     video.load();
 
     return () => {
       cancelled = true;
-      video.src = '';
+      window.clearTimeout(timer);
+      cleanup();
     };
   }, [url]);
 

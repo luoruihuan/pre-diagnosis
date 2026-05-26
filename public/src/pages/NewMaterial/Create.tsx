@@ -18,7 +18,7 @@ import type { UploadFile, UploadChangeParam } from 'antd/es/upload';
 import { observer } from 'mobx-react-lite';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import diagnosisStore from '../../stores/diagnosisStore';
-import { uploadVideoAsync, getUploadStatus } from '../../services/material';
+import { uploadVideoToOcean } from '../../services/material';
 import type { NewMaterialCreateParams } from '../../types/diagnosis';
 import {
   getAdvertiserOptions,
@@ -99,58 +99,26 @@ const NewMaterialCreate: React.FC = observer(() => {
 
     try {
       setUploading(true);
-      setUploadProgress(5);
+      setUploadProgress(0);
 
-      // 第一步：上传文件到后端（立即返回 taskId，不等巨量引擎）
-      const { taskId } = await uploadVideoAsync({
+      // 直传巨量引擎，onProgress 拿到真实上传进度
+      const { videoId, videoUrl } = await uploadVideoToOcean({
         agentId: values.agentId,
         fileName: uploadFileName || uploadFile.name,
         file: uploadFile,
-      });
-
-      setUploadProgress(15);
-
-      // 第二步：轮询后端任务状态，等待巨量引擎上传完成
-      const result = await new Promise<{ videoId: string; materialId: number; videoUrl: string }>(
-        (resolve, reject) => {
-          let attempts = 0;
-          const maxAttempts = 60; // 最多轮询 60 次，每次 5s，共 5 分钟
-
-          const poll = async () => {
-            attempts++;
-            try {
-              const status = await getUploadStatus(taskId);
-
-              // 进度映射：15% ~ 85%
-              const mapped = 15 + Math.round((status.progress / 100) * 70);
-              setUploadProgress(Math.min(mapped, 85));
-
-              if (status.status === 'SUCCESS' && status.result) {
-                resolve(status.result);
-              } else if (status.status === 'FAILED') {
-                reject(new Error(status.error || '视频上传失败'));
-              } else if (attempts >= maxAttempts) {
-                reject(new Error('上传超时，请稍后重试'));
-              } else {
-                setTimeout(poll, 5000);
-              }
-            } catch (err) {
-              reject(err);
-            }
-          };
-
-          setTimeout(poll, 3000); // 3s 后开始第一次轮询
+        onProgress: (percent) => {
+          // 上传占 0~90%，留 10% 给创建任务
+          setUploadProgress(Math.round(percent * 0.9));
         },
-      );
+      });
 
       setUploadProgress(90);
 
-      // 第三步：创建前测任务
       const params: NewMaterialCreateParams = {
         advertiserId: values.advertiserId,
         agentId: values.agentId,
-        videoId: result.videoId,
-        videoUrl: result.videoUrl,
+        videoId,
+        videoUrl,
         title: values.title,
       };
 
@@ -164,9 +132,7 @@ const NewMaterialCreate: React.FC = observer(() => {
       setUploadProgress(100);
       navigate('/new-material/tasks');
     } catch (err) {
-      if (err instanceof Error) {
-        message.error(err.message);
-      }
+      if (err instanceof Error) message.error(err.message);
     } finally {
       setUploading(false);
     }
