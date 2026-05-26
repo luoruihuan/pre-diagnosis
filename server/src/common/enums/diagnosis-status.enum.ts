@@ -1,6 +1,6 @@
 export enum DiagnosisStatus {
   PENDING = 'PENDING',
-  PROCESSING = 'PROCESSING',
+  RUNNING = 'RUNNING',
   SUCCESS = 'SUCCESS',
   FAILED = 'FAILED',
   TIMEOUT = 'TIMEOUT',

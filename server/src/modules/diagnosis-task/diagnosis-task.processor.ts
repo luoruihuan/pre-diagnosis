@@ -15,7 +15,7 @@ export class DiagnosisTaskProcessor {
     this.logger.debug(`轮询任务状态: ${taskId} (尝试 ${job.attemptsMade + 1}/12)`);
 
     try {
-      await this.taskService.pollTaskStatus(taskId);
+      await this.taskService.pollTaskStatus(taskId, job.attemptsMade);
     } catch (error) {
       this.logger.warn(`轮询失败: ${taskId} - ${error.message}`);
       throw error; // 让 Bull 处理重试

@@ -208,7 +208,7 @@ export class DiagnosisTaskService {
     return updated;
   }
 
-  async pollTaskStatus(taskId: string): Promise<void> {
+  async pollTaskStatus(taskId: string, attemptsMade: number): Promise<void> {
     const task = await this.findOne(taskId);
 
     // 如果任务已完成，不再轮询
@@ -235,11 +235,10 @@ export class DiagnosisTaskService {
         (t) => String(t.taskId) === task.oceanTaskId,
       );
 
-      if (!taskResult) {
-        // 巨量未返回该任务，继续等待
-        task.retryCount += 1;
-        await this.taskRepository.save(task);
-        throw new Error('巨量引擎暂未返回任务结果，继续轮询');
+      if (!taskResult || taskResult.status === 'PENDING') {
+        // 巨量未返回或仍在处理中，更新为 RUNNING 继续等待
+        await this.updateStatus(taskId, DiagnosisStatus.RUNNING);
+        throw new Error('任务处理中，继续轮询');
       }
 
       if (taskResult.status === 'SUCCESS') {
@@ -257,16 +256,10 @@ export class DiagnosisTaskService {
           null,
           '巨量引擎前测任务失败',
         );
-      } else {
-        // PENDING：继续轮询
-        await this.updateStatus(taskId, DiagnosisStatus.PROCESSING);
-        task.retryCount += 1;
-        await this.taskRepository.save(task);
-        throw new Error('任务处理中，继续轮询');
       }
     } catch (error) {
-      // 如果是最后一次重试，标记为超时
-      if (task.retryCount >= 11) {
+      // Bull 的 attemptsMade 从 0 开始，第 12 次（index=11）是最后一次
+      if (attemptsMade >= 11) {
         await this.updateStatus(
           taskId,
           DiagnosisStatus.TIMEOUT,
@@ -283,7 +276,7 @@ export class DiagnosisTaskService {
     const task = await this.findOne(id);
 
     // 只允许删除已完成、失败或超时的任务
-    if (task.status === DiagnosisStatus.PROCESSING || task.status === DiagnosisStatus.PENDING) {
+    if (task.status === DiagnosisStatus.RUNNING || task.status === DiagnosisStatus.PENDING) {
       throw new BadRequestException('无法删除进行中或待处理的任务');
     }
 

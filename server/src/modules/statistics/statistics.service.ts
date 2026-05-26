@@ -25,7 +25,7 @@ export class StatisticsService {
         this.taskRepository.count({ where: { status: DiagnosisStatus.FAILED } }),
         this.taskRepository.count({
           where: {
-            status: In([DiagnosisStatus.PENDING, DiagnosisStatus.PROCESSING]),
+            status: In([DiagnosisStatus.PENDING, DiagnosisStatus.RUNNING]),
           },
         }),
       ]);
