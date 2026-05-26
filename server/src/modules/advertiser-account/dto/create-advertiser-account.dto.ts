@@ -18,10 +18,15 @@ export class CreateAdvertiserAccountDto {
   @IsNotEmpty()
   advertiserId: number;
 
-  @ApiProperty({ description: '备注名称', required: false })
+  @ApiProperty({ description: '广告主名称', required: false })
   @IsString()
   @IsOptional()
   name?: string;
+
+  @ApiProperty({ description: '备注', required: false })
+  @IsString()
+  @IsOptional()
+  remark?: string;
 
   @ApiProperty({ description: '是否启用', default: true, required: false })
   @IsBoolean()

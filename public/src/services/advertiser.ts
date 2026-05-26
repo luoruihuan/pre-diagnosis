@@ -5,6 +5,7 @@ export interface AdvertiserAccount {
   agentId: number;
   advertiserId: number;
   name: string | null;
+  remark: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -22,6 +23,7 @@ export interface CreateAdvertiserAccountParams {
   agentId: number;
   advertiserId: number;
   name?: string;
+  remark?: string;
   isActive?: boolean;
 }
 
@@ -29,6 +31,7 @@ export interface UpdateAdvertiserAccountParams {
   agentId?: number;
   advertiserId?: number;
   name?: string;
+  remark?: string;
   isActive?: boolean;
 }
 

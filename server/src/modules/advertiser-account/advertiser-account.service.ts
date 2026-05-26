@@ -87,11 +87,15 @@ export class AdvertiserAccountService {
 
     const agentOptions = Array.from(agentMap.entries()).map(([value, label]) => ({ label, value }));
 
-    const advertiserOptions = accounts.map(a => ({
-      label: a.name ? `${Number(a.advertiserId)} (${a.name})` : String(Number(a.advertiserId)),
-      value: Number(a.advertiserId),
-      agentId: Number(a.agentId),
-    }));
+    const advertiserOptions = accounts.map(a => {
+      const baseName = a.name || String(Number(a.advertiserId));
+      const label = a.remark ? `${baseName}(${a.remark})` : baseName;
+      return {
+        label,
+        value: Number(a.advertiserId),
+        agentId: Number(a.agentId),
+      };
+    });
 
     return { agentOptions, advertiserOptions };
   }

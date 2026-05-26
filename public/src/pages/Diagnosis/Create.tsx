@@ -26,19 +26,12 @@ const DiagnosisCreate: React.FC = observer(() => {
     }
 
     try {
-      // 处理地区代码（Cascader 返回的是数组，取最后一个）
-      const regionCode = Array.isArray(values.regionCode)
-        ? values.regionCode[values.regionCode.length - 1]
-        : values.regionCode;
-
       await diagnosisStore.createTask({
-        taskName: values.taskName,
-        videoId: selectedVideo.id,
-        regionCode,
-        ageGroup: values.ageGroup,
-        gender: values.gender,
-        sampleSize: values.sampleSize,
-        dimensions: values.dimensions,
+        advertiserId: values.advertiserId,
+        agentId: values.agentId,
+        videoId: String(selectedVideo.id),
+        videoUrl: selectedVideo.coverUrl,
+        title: selectedVideo.title,
       });
 
       message.success('任务创建成功');

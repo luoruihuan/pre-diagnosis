@@ -60,6 +60,7 @@ const Advertisers: React.FC = () => {
       agentId: record.agentId,
       advertiserId: record.advertiserId,
       name: record.name,
+      remark: record.remark,
       isActive: record.isActive,
     });
     setModalVisible(true);
@@ -93,6 +94,7 @@ const Advertisers: React.FC = () => {
     agentId: number;
     advertiserId: number;
     name?: string;
+    remark?: string;
     isActive?: boolean;
   }) => {
     try {
@@ -125,10 +127,16 @@ const Advertisers: React.FC = () => {
       width: 140,
     },
     {
-      title: '备注名称',
+      title: '广告主名称',
       dataIndex: 'name',
       key: 'name',
       render: (name: string | null) => name || <span style={{ color: '#bbb' }}>—</span>,
+    },
+    {
+      title: '备注',
+      dataIndex: 'remark',
+      key: 'remark',
+      render: (remark: string | null) => remark || <span style={{ color: '#bbb' }}>—</span>,
     },
     {
       title: '状态',
@@ -241,8 +249,12 @@ const Advertisers: React.FC = () => {
             />
           </Form.Item>
 
-          <Form.Item label="备注名称" name="name">
-            <Input placeholder="请输入备注名称（选填）" maxLength={100} />
+          <Form.Item label="广告主名称" name="name">
+            <Input placeholder="请输入广告主名称（选填）" maxLength={100} />
+          </Form.Item>
+
+          <Form.Item label="备注" name="remark">
+            <Input placeholder="请输入备注（选填），将显示在下拉选项中" maxLength={200} />
           </Form.Item>
 
           <Form.Item label="状态" name="isActive" valuePropName="checked" initialValue={true}>

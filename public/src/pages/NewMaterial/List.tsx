@@ -170,8 +170,11 @@ const NewMaterialList: React.FC<NewMaterialListProps> = observer(
         key: 'nonQualityReasons',
         width: 100,
         render: (_: unknown, record: DiagnosisTask) => {
-          const reasons = record.result?.nonQualityReasons;
-          if (!reasons || reasons.length === 0) return '-';
+          const reasons = [
+            ...(record.result?.notAdHighQualityReason ?? []),
+            ...(record.result?.notEcpHighQualityReason ?? []),
+          ];
+          if (reasons.length === 0) return '-';
           const content = (
             <ul style={{ margin: 0, paddingLeft: 16, maxWidth: 260 }}>
               {reasons.map((r, i) => (

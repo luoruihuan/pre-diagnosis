@@ -72,7 +72,7 @@ const Dashboard: React.FC = observer(() => {
     (t) => t.status === 'PENDING' || t.status === 'RUNNING',
   ).length;
   const completedCount = tasks.filter(
-    (t) => t.status === 'SUCCESS' || t.status === 'COMPLETED',
+    (t) => t.status === 'SUCCESS',
   ).length;
   const failedCount = tasks.filter((t) => t.status === 'FAILED').length;
 

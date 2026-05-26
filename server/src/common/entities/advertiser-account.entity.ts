@@ -20,6 +20,9 @@ export class AdvertiserAccount {
   @Column({ type: 'varchar', length: 100, nullable: true })
   name: string;
 
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  remark: string;
+
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 

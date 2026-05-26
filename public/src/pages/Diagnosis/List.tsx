@@ -3,13 +3,10 @@ import {
   Card,
   Table,
   Button,
-  Input,
   Space,
   Select,
   DatePicker,
   Modal,
-  Progress,
-  Image,
 } from 'antd';
 import { PlusOutlined, EyeOutlined, DeleteOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { observer } from 'mobx-react-lite';
@@ -24,7 +21,6 @@ const { RangePicker } = DatePicker;
 
 const DiagnosisList: React.FC = observer(() => {
   const navigate = useNavigate();
-  const [searchName, setSearchName] = useState('');
   const [searchStatus, setSearchStatus] = useState<string | undefined>();
   const [dateRange, setDateRange] = useState<[string, string] | undefined>();
   const [page, setPage] = useState(1);
@@ -35,7 +31,7 @@ const DiagnosisList: React.FC = observer(() => {
 
   useEffect(() => {
     loadTasks();
-  }, [page, pageSize, searchName, searchStatus, dateRange]);
+  }, [page, pageSize, searchStatus, dateRange]);
 
   // 自动刷新 PENDING 状态的任务（修复内存泄漏）
   useEffect(() => {
@@ -45,12 +41,10 @@ const DiagnosisList: React.FC = observer(() => {
       );
 
       if (hasPendingTasks && !pollingTimerRef.current) {
-        // 有待处理任务且定时器未启动，启动轮询
         pollingTimerRef.current = setInterval(() => {
           loadTasks();
         }, 5000);
       } else if (!hasPendingTasks && pollingTimerRef.current) {
-        // 没有待处理任务且定时器在运行，停止轮询
         clearInterval(pollingTimerRef.current);
         pollingTimerRef.current = null;
       }
@@ -58,7 +52,6 @@ const DiagnosisList: React.FC = observer(() => {
 
     checkAndStartPolling();
 
-    // 清理函数：组件卸载时清除定时器
     return () => {
       if (pollingTimerRef.current) {
         clearInterval(pollingTimerRef.current);
@@ -71,7 +64,6 @@ const DiagnosisList: React.FC = observer(() => {
     diagnosisStore.fetchTasks({
       page,
       pageSize,
-      taskName: searchName || undefined,
       status: searchStatus,
       startDate: dateRange?.[0],
       endDate: dateRange?.[1],
@@ -84,7 +76,6 @@ const DiagnosisList: React.FC = observer(() => {
   };
 
   const handleReset = () => {
-    setSearchName('');
     setSearchStatus(undefined);
     setDateRange(undefined);
     setPage(1);
@@ -93,26 +84,12 @@ const DiagnosisList: React.FC = observer(() => {
   const handleDelete = (record: DiagnosisTask) => {
     Modal.confirm({
       title: '确认删除',
-      content: `确定要删除任务"${record.taskName}"吗？`,
+      content: `确定要删除任务"${record.title ?? record.id}"吗？`,
       onOk: async () => {
         try {
           await diagnosisStore.deleteTask(record.id);
         } catch (error) {
           // 错误已在 store 中处理
-        }
-      },
-    });
-  };
-
-  const handleRetry = (record: DiagnosisTask) => {
-    Modal.confirm({
-      title: '确认重试',
-      content: `确定要重新执行任务"${record.taskName}"吗？`,
-      onOk: async () => {
-        try {
-          await diagnosisStore.retryTask(record.id);
-        } catch (error) {
-          // 错误处理
         }
       },
     });
@@ -126,62 +103,29 @@ const DiagnosisList: React.FC = observer(() => {
       width: 80,
     },
     {
-      title: '视频封面',
-      dataIndex: 'videoCoverUrl',
-      key: 'videoCoverUrl',
-      width: 100,
-      render: (url: string) => (
-        <Image src={url} width={60} height={60} style={{ objectFit: 'cover' }} />
-      ),
-    },
-    {
-      title: '任务名称',
-      dataIndex: 'taskName',
-      key: 'taskName',
+      title: '视频ID',
+      dataIndex: 'videoId',
+      key: 'videoId',
       ellipsis: true,
     },
     {
-      title: '视频标题',
-      dataIndex: 'videoTitle',
-      key: 'videoTitle',
+      title: '标题',
+      dataIndex: 'title',
+      key: 'title',
       ellipsis: true,
     },
     {
-      title: '地区',
-      dataIndex: 'regionName',
-      key: 'regionName',
+      title: '广告主ID',
+      dataIndex: 'advertiserId',
+      key: 'advertiserId',
       width: 120,
-    },
-    {
-      title: '样本量',
-      dataIndex: 'sampleSize',
-      key: 'sampleSize',
-      width: 100,
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (status: any) => <TaskStatusBadge status={status} />,
-    },
-    {
-      title: '进度',
-      dataIndex: 'progress',
-      key: 'progress',
-      width: 150,
-      render: (progress: number, record: DiagnosisTask) => {
-        if (record.status === 'RUNNING') {
-          return <Progress percent={progress} size="small" />;
-        }
-        if (record.status === 'COMPLETED') {
-          return <Progress percent={100} size="small" status="success" />;
-        }
-        if (record.status === 'FAILED') {
-          return <Progress percent={progress} size="small" status="exception" />;
-        }
-        return '-';
-      },
+      render: (status: string) => <TaskStatusBadge status={status} />,
     },
     {
       title: '创建时间',
@@ -193,7 +137,7 @@ const DiagnosisList: React.FC = observer(() => {
     {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 160,
       fixed: 'right' as const,
       render: (_: any, record: DiagnosisTask) => (
         <Space>
@@ -204,15 +148,6 @@ const DiagnosisList: React.FC = observer(() => {
           >
             查看
           </Button>
-          {record.status === 'FAILED' && (
-            <Button
-              type="link"
-              icon={<ReloadOutlined />}
-              onClick={() => handleRetry(record)}
-            >
-              重试
-            </Button>
-          )}
           <Button
             type="link"
             danger
@@ -247,13 +182,6 @@ const DiagnosisList: React.FC = observer(() => {
       <Space direction="vertical" style={{ width: '100%' }} size="middle">
         {/* 搜索栏 */}
         <Space wrap>
-          <Input
-            placeholder="搜索任务名称"
-            value={searchName}
-            onChange={(e) => setSearchName(e.target.value)}
-            style={{ width: 200 }}
-            prefix={<SearchOutlined />}
-          />
           <Select
             placeholder="任务状态"
             value={searchStatus}
@@ -275,7 +203,7 @@ const DiagnosisList: React.FC = observer(() => {
               }
             }}
           />
-          <Button type="primary" onClick={handleSearch}>
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索
           </Button>
           <Button onClick={handleReset}>重置</Button>
@@ -290,7 +218,7 @@ const DiagnosisList: React.FC = observer(() => {
           dataSource={diagnosisStore.tasks}
           rowKey="id"
           loading={diagnosisStore.loading}
-          scroll={{ x: 1500 }}
+          scroll={{ x: 900 }}
           pagination={{
             current: page,
             pageSize,
@@ -311,3 +239,4 @@ const DiagnosisList: React.FC = observer(() => {
 });
 
 export default DiagnosisList;
+
