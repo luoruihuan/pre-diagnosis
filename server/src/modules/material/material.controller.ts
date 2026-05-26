@@ -24,27 +24,6 @@ export class MaterialController {
     private readonly oceanEngineService: OceanEngineService,
   ) {}
 
-  /**
-   * GET /materials/upload-token
-   * 返回前端直传巨量引擎所需的 access_token 和上传参数
-   * 前端拿到后直接 POST 到 https://api.oceanengine.com/open_api/2/file/video/agent/
-   */
-  @Get('upload-token')
-  @ApiOperation({ summary: '获取巨量引擎直传凭证' })
-  @SwaggerResponse({ status: 200, description: '返回 access_token 和上传端点' })
-  async getUploadToken(@Query('agentId') agentIdStr: string) {
-    const agentId = Number(agentIdStr);
-    if (!agentId || isNaN(agentId)) {
-      throw new BadRequestException('agentId 必须为有效数字');
-    }
-    const accessToken = await this.oceanEngineService.getAccessToken();
-    return {
-      accessToken,
-      agentId,
-      uploadUrl: 'https://api.oceanengine.com/open_api/2/file/video/agent/',
-    };
-  }
-
   @Get('ark-videos')
   @ApiOperation({ summary: '获取巨量引擎方舟素材库列表' })
   @SwaggerResponse({ status: 200, description: '获取成功' })

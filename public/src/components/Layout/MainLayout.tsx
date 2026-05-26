@@ -74,7 +74,6 @@ const MainLayout: React.FC = () => {
   const getOpenKeys = () => {
     const path = location.pathname;
     if (path.startsWith('/new-material')) return ['/new-material'];
-    if (path.startsWith('/ark-material')) return ['/ark-material'];
     if (path.startsWith('/base')) return ['/base'];
     return [];
   };

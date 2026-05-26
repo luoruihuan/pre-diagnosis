@@ -136,7 +136,7 @@ const VideoThumb: React.FC<{ url: string; onClick: () => void }> = ({ url, onCli
         </div>
       )}
       {!capturing && thumb && (
-        <img src={thumb} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        <img src={thumb} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} alt="" />
       )}
       {!capturing && !thumb && (
         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
